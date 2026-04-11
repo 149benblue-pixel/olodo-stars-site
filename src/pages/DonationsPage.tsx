@@ -1,0 +1,219 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { Heart, Smartphone, Landmark, Send, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+import { toast } from 'sonner';
+
+const DonationsPage = () => {
+  const [amount, setAmount] = useState('');
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || isNaN(Number(amount))) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'donations'), {
+        amount: Number(amount),
+        donorName: name || 'Anonymous',
+        message: message,
+        date: serverTimestamp()
+      });
+      setIsSuccess(true);
+      toast.success('Thank you for your generous donation!');
+    } catch (error) {
+      console.error('Error submitting donation:', error);
+      toast.error('Failed to process donation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-white rounded-3xl p-12 text-center shadow-xl"
+        >
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mx-auto mb-8">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Thank You!</h2>
+          <p className="text-gray-600 mb-8">
+            Your contribution of <span className="font-bold text-gray-900">KES {amount}</span> has been recorded. Every contribution helps Olodo Hot Stars grow and succeed.
+          </p>
+          <Button 
+            onClick={() => setIsSuccess(false)}
+            className="w-full bg-red-600 hover:bg-red-700 rounded-full py-6 text-lg font-bold"
+          >
+            Make Another Donation
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-12 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl mb-4 tracking-tight">
+            Support the <span className="text-red-600">Stars</span>
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Your support helps us provide equipment, training, and opportunities for our players.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          {/* Donation Form */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden">
+              <CardHeader className="bg-red-600 text-white p-8">
+                <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                  <Heart className="w-6 h-6 fill-white" />
+                  Make a Contribution
+                </CardTitle>
+                <p className="text-red-100 opacity-80">Every contribution helps the team grow 💪</p>
+              </CardHeader>
+              <CardContent className="p-8">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-widest">Amount (KES)</label>
+                    <Input 
+                      type="number" 
+                      placeholder="Enter amount" 
+                      className="h-14 text-lg font-bold border-gray-200 focus:ring-red-600"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-widest">Your Name (Optional)</label>
+                    <Input 
+                      type="text" 
+                      placeholder="Enter your name" 
+                      className="h-14 border-gray-200 focus:ring-red-600"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-widest">Message (Optional)</label>
+                    <Textarea 
+                      placeholder="Write a message of support..." 
+                      className="min-h-[120px] border-gray-200 focus:ring-red-600"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    {isSubmitting ? 'Processing...' : 'Donate Now'}
+                    <Send className="ml-2 w-5 h-5" />
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Payment Info */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-8"
+          >
+            <div className="bg-white rounded-3xl p-8 shadow-md border border-gray-100">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-green-100 rounded-2xl text-green-600">
+                  <Smartphone className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">M-Pesa Payment</h3>
+                  <p className="text-gray-500 text-sm">Quick and easy mobile payment</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                  <span className="font-bold text-gray-600">Paybill Number</span>
+                  <span className="font-black text-xl text-red-600">123456</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                  <span className="font-bold text-gray-600">Account Name</span>
+                  <span className="font-black text-xl text-red-600">OLODO</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-8 shadow-md border border-gray-100">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-blue-100 rounded-2xl text-blue-600">
+                  <Landmark className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Bank Transfer</h3>
+                  <p className="text-gray-500 text-sm">Direct bank deposit</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                  <span className="font-bold text-gray-600">Bank Name</span>
+                  <span className="font-black text-lg text-gray-900">Equity Bank</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                  <span className="font-bold text-gray-600">Account Number</span>
+                  <span className="font-black text-lg text-gray-900">0123 4567 8901</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-red-50 rounded-3xl p-8 border border-red-100">
+              <h3 className="text-lg font-bold text-red-900 mb-4">Why Donate?</h3>
+              <ul className="space-y-3 text-red-800">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <span>Provide quality football kits and equipment</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <span>Support our youth academy programs</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <span>Maintain and improve our training facilities</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <span>Cover travel costs for away matches</span>
+                </li>
+              </ul>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DonationsPage;

@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: players
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - number: number (required)
+    //   - position: string (required, enum)
+    //   - photo: string (optional, URL)
+    //   - matchesPlayed: number
+    //   - goals: number
+    //   - assists: number
+    //   - rating: number
+    //
+    // Collection: officials
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - role: string (required)
+    //   - photo: string (optional, URL)
+    //   - contact: string
+    //
+    // Collection: matches
+    // Document ID: auto-generated
+    // Fields:
+    //   - opponent: string (required)
+    //   - date: timestamp (required)
+    //   - isUpcoming: bool (required)
+    //   - score: string
+    //   - competition: string
+    //   - venue: string
+    //   - time: string
+    //
+    // Collection: news
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - content: string (required)
+    //   - date: timestamp (required)
+    //   - image: string (optional, URL)
+    //
+    // Collection: donations
+    // Document ID: auto-generated
+    // Fields:
+    //   - amount: number (required)
+    //   - donorName: string
+    //   - message: string
+    //   - date: timestamp (required)
+    //
+    // Collection: settings
+    // Document ID: teamStats
+    // Fields:
+    //   - totalMatches: number
+    //   - wins: number
+    //   - draws: number
+    //   - losses: number
+    //   - goalsScored: number
+    //   - goalsConceded: number
+    //   - averageRating: number
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "149benblue@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /players/{playerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /officials/{officialId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /donations/{donationId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.amount is number && request.resource.data.amount > 0;
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

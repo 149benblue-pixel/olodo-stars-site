@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "Player": {
+      "title": "Player",
+      "description": "A football player in the club",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "photo": { "type": "string", "format": "uri" },
+        "name": { "type": "string" },
+        "number": { "type": "number" },
+        "position": { "type": "string", "enum": ["Goalkeeper", "Defender", "Midfielder", "Striker"] },
+        "matchesPlayed": { "type": "number" },
+        "goals": { "type": "number" },
+        "assists": { "type": "number" },
+        "rating": { "type": "number" }
+      },
+      "required": ["name", "number", "position"]
+    },
+    "Official": {
+      "title": "Official",
+      "description": "A club official or staff member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "photo": { "type": "string", "format": "uri" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "contact": { "type": "string" }
+      },
+      "required": ["name", "role"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "A football match (past or upcoming)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "opponent": { "type": "string" },
+        "score": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "competition": { "type": "string" },
+        "isUpcoming": { "type": "boolean" },
+        "venue": { "type": "string" },
+        "time": { "type": "string" }
+      },
+      "required": ["opponent", "date", "isUpcoming"]
+    },
+    "News": {
+      "title": "News",
+      "description": "Club news and announcements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "image": { "type": "string", "format": "uri" }
+      },
+      "required": ["title", "content", "date"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "A donation from a fan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "donorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "date"]
+    },
+    "TeamStats": {
+      "title": "TeamStats",
+      "description": "Aggregated team performance statistics",
+      "type": "object",
+      "properties": {
+        "totalMatches": { "type": "number" },
+        "wins": { "type": "number" },
+        "draws": { "type": "number" },
+        "losses": { "type": "number" },
+        "goalsScored": { "type": "number" },
+        "goalsConceded": { "type": "number" },
+        "averageRating": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/players/{playerId}": {
+      "schema": "Player",
+      "description": "Collection of players"
+    },
+    "/officials/{officialId}": {
+      "schema": "Official",
+      "description": "Collection of officials"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Collection of matches"
+    },
+    "/news/{newsId}": {
+      "schema": "News",
+      "description": "Collection of news articles"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Collection of donations"
+    },
+    "/settings/teamStats": {
+      "schema": "TeamStats",
+      "description": "Global team statistics"
+    }
+  }
+}

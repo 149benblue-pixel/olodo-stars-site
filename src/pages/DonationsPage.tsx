@@ -59,12 +59,24 @@ const DonationsPage = () => {
             Please complete your donation by sending to:
             <span className="block text-2xl font-black text-red-600 mt-2">+254 716 773 610</span>
           </p>
-          <Button 
-            onClick={() => setIsSuccess(false)}
-            className="w-full bg-red-600 hover:bg-red-700 rounded-full py-6 text-lg font-bold"
-          >
-            Make Another Donation
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button 
+              onClick={() => {
+                navigator.clipboard.writeText('+254716773610');
+                toast.success('Number copied to clipboard!');
+              }}
+              variant="outline"
+              className="w-full rounded-full py-6 text-lg font-bold border-red-200 text-red-600"
+            >
+              Copy Number
+            </Button>
+            <Button 
+              onClick={() => setIsSuccess(false)}
+              className="w-full bg-red-600 hover:bg-red-700 rounded-full py-6 text-lg font-bold"
+            >
+              Done
+            </Button>
+          </div>
         </motion.div>
       </div>
     );

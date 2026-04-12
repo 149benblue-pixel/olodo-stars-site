@@ -34,9 +34,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onUploadComplete, fold
       
       onUploadComplete(downloadURL);
       toast.success('Image uploaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+      if (error.code === 'storage/retry-limit-exceeded') {
+        toast.error('Upload failed: Connection timed out. Please ensure Firebase Storage is enabled in your console.');
+      } else if (error.code === 'storage/unauthorized') {
+        toast.error('Upload failed: Unauthorized. Please check your Firebase Storage security rules.');
+      } else {
+        toast.error('Failed to upload image. Please try again.');
+      }
       setPreview(null); // Reset preview on error
     } finally {
       setUploading(false);

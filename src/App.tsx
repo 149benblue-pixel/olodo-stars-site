@@ -46,7 +46,7 @@ const Navbar = ({ user }: { user: User | null }) => {
     { name: 'Donate', path: '/donate', icon: Heart },
   ];
 
-  const isAdmin = user?.email === '149benblue@gmail.com';
+  const isAdmin = user?.email === '149benvolio@gmail.com' || user?.email === '149benblue@gmail.com';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
@@ -235,15 +235,15 @@ const Footer = () => {
             <ul className="space-y-4 text-gray-400">
               <li className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-red-600" />
-                <span>info@olodohotstars.com</span>
+                <span>149benvolio@gmail.com</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone className="w-5 h-5 text-red-600" />
-                <span>+254 700 000 000</span>
+                <span>+254 723 134611</span>
               </li>
               <li className="flex items-center space-x-3">
                 <MessageCircle className="w-5 h-5 text-red-600" />
-                <span>WhatsApp: +254 700 000 000</span>
+                <span>WhatsApp: +254 716 773 610</span>
               </li>
             </ul>
           </div>

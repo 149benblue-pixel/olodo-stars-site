@@ -13,7 +13,8 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +44,8 @@ import {
   Calendar,
   LayoutDashboard,
   Settings as SettingsIcon,
-  BarChart3
+  BarChart3,
+  Camera
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -54,6 +56,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ImageUpload } from '@/components/ImageUpload';
 import { VideoUpload } from '@/components/VideoUpload';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -72,7 +75,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
   const [teamStats, setTeamStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = user?.email === '149benblue@gmail.com';
+  const isAdmin = user?.email === '149benvolio@gmail.com' || user?.email === '149benblue@gmail.com';
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -305,8 +308,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
     matchesPlayed: '0',
     goals: '0',
     assists: '0',
+    cleanSheets: '0',
     rating: '0.0',
-    photo: ''
+    photo: '',
+    availability: true
   });
 
   const handleEdit = (player: any) => {
@@ -318,8 +323,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       matchesPlayed: player.matchesPlayed.toString(),
       goals: player.goals.toString(),
       assists: player.assists.toString(),
+      cleanSheets: (player.cleanSheets || 0).toString(),
       rating: player.rating.toString(),
-      photo: player.photo || ''
+      photo: player.photo || '',
+      availability: player.availability !== undefined ? player.availability : true
     });
     setIsAdding(true);
   };
@@ -333,6 +340,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
         matchesPlayed: Number(formData.matchesPlayed),
         goals: Number(formData.goals),
         assists: Number(formData.assists),
+        cleanSheets: Number(formData.cleanSheets),
         rating: Number(formData.rating)
       };
 
@@ -346,7 +354,18 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       
       setIsAdding(false);
       setEditingId(null);
-      setFormData({ name: '', number: '', position: 'Goalkeeper', matchesPlayed: '0', goals: '0', assists: '0', rating: '0.0', photo: '' });
+      setFormData({ 
+        name: '', 
+        number: '', 
+        position: 'Goalkeeper', 
+        matchesPlayed: '0', 
+        goals: '0', 
+        assists: '0', 
+        cleanSheets: '0', 
+        rating: '0.0', 
+        photo: '',
+        availability: true
+      });
     } catch (error) {
       toast.error(editingId ? 'Error updating player' : 'Error adding player');
     }
@@ -361,6 +380,28 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       toast.error('Error deleting player');
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  const handleDirectPhotoUpload = async (playerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading('Uploading photo...');
+    try {
+      const storageRef = ref(storage, `players/${Date.now()}-${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      await updateDoc(doc(db, 'players', playerId), { photo: downloadURL });
+      toast.success('Photo updated successfully', { id: toastId });
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      if (error.code === 'storage/retry-limit-exceeded') {
+        toast.error('Upload failed: Connection timed out. Please ensure Firebase Storage is enabled.', { id: toastId });
+      } else {
+        toast.error('Failed to upload photo', { id: toastId });
+      }
     }
   };
 
@@ -433,8 +474,22 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               <Input type="number" value={formData.assists} onChange={e => setFormData({...formData, assists: e.target.value})} />
             </div>
             <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
+              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} />
+            </div>
+            <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Rating</label>
               <Input type="number" step="0.1" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Availability</label>
+              <Select value={formData.availability ? 'true' : 'false'} onValueChange={v => setFormData({...formData, availability: v === 'true'})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Available</SelectItem>
+                  <SelectItem value="false">Unavailable</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-2 lg:col-span-4">
               <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
@@ -453,8 +508,9 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Position</TableHead>
-              <TableHead>Stats (M/G/A)</TableHead>
+              <TableHead>Stats (M/G/A/CS)</TableHead>
               <TableHead>Rating</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -462,18 +518,34 @@ const PlayerManager = ({ players }: { players: any[] }) => {
             {players.map(player => (
               <TableRow key={player.id}>
                 <TableCell>
-                  <Avatar size="lg" className="rounded-lg">
-                    <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} alt={player.name} />
-                    <AvatarFallback className="rounded-lg bg-red-50 text-red-600 font-bold">
-                      {player.name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative group w-12 h-12">
+                    <Avatar size="lg" className="rounded-lg w-full h-full">
+                      <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} alt={player.name} className="object-cover" />
+                      <AvatarFallback className="rounded-lg bg-red-50 text-red-600 font-bold">
+                        {player.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg transition-all cursor-pointer border-2 border-white/50">
+                      <Camera className="w-5 h-5 text-white" />
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => handleDirectPhotoUpload(player.id, e)}
+                      />
+                    </label>
+                  </div>
                 </TableCell>
                 <TableCell className="font-bold text-red-600">{player.number}</TableCell>
                 <TableCell className="font-medium">{player.name}</TableCell>
                 <TableCell>{player.position}</TableCell>
-                <TableCell>{player.matchesPlayed}/{player.goals}/{player.assists}</TableCell>
+                <TableCell>{player.matchesPlayed}/{player.goals}/{player.assists}/{player.cleanSheets || 0}</TableCell>
                 <TableCell className="font-bold">{player.rating}</TableCell>
+                <TableCell>
+                  <Badge className={player.availability === false ? 'bg-gray-400' : 'bg-green-500'}>
+                    {player.availability === false ? 'Unavailable' : 'Available'}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(player)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">

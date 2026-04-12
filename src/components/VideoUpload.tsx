@@ -39,9 +39,15 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, fold
       
       onUploadComplete(downloadURL);
       toast.success('Video uploaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading video:', error);
-      toast.error('Failed to upload video');
+      if (error.code === 'storage/retry-limit-exceeded') {
+        toast.error('Upload failed: Connection timed out. Please ensure Firebase Storage is enabled in your console and try a smaller file.');
+      } else if (error.code === 'storage/unauthorized') {
+        toast.error('Upload failed: Unauthorized. Please check your Firebase Storage security rules.');
+      } else {
+        toast.error('Failed to upload video. Please try again.');
+      }
       setFileName(null);
     } finally {
       setUploading(false);

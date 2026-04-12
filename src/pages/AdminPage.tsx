@@ -795,6 +795,7 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
                   />
                   <VideoUpload 
                     onUploadComplete={(url) => setFormData({...formData, videoUrl: url})} 
+                    initialVideo={formData.videoUrl}
                   />
                 </div>
               </div>

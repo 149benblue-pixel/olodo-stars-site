@@ -9,11 +9,16 @@ import { toast } from 'sonner';
 interface VideoUploadProps {
   onUploadComplete: (url: string) => void;
   folder?: string;
+  initialVideo?: string;
 }
 
-export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, folder = 'videos' }) => {
+export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, folder = 'videos', initialVideo }) => {
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+
+  const displayLabel = uploading ? 'Uploading highlights...' : fileName ? `Selected: ${fileName}` : initialVideo ? 'Video Uploaded' : 'Upload Match Highlights';
+  const iconColor = (fileName || initialVideo) ? 'text-red-600' : 'text-gray-300 group-hover:text-red-400';
+  const buttonText = (fileName || initialVideo) ? 'Change' : 'Select';
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,9 +60,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, fold
             className="hidden"
           />
           <div className="flex flex-col items-center gap-1">
-            <Video className={`w-6 h-6 ${fileName ? 'text-red-600' : 'text-gray-300 group-hover:text-red-400'} transition-colors`} />
+            <Video className={`w-6 h-6 ${iconColor} transition-colors`} />
             <span className="text-[10px] font-bold text-gray-400 uppercase">
-              {fileName ? 'Change' : 'Select'}
+              {buttonText}
             </span>
           </div>
           {uploading && (
@@ -68,7 +73,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, fold
         </label>
         <div className="flex-grow">
           <p className="text-sm font-medium text-gray-700">
-            {uploading ? 'Uploading highlights...' : fileName ? `Selected: ${fileName}` : 'Upload Match Highlights'}
+            {displayLabel}
           </p>
           <p className="mt-1 text-xs text-gray-500">
             MP4, WebM or OGG. Max 20MB.

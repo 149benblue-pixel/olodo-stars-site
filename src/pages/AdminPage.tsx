@@ -15,6 +15,21 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { 
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from '@/components/ui/avatar';
+import { 
   Users, 
   Trophy, 
   Newspaper, 
@@ -25,6 +40,7 @@ import {
   Save, 
   X,
   Shield,
+  Calendar,
   LayoutDashboard,
   Settings as SettingsIcon,
   BarChart3
@@ -238,8 +254,50 @@ const AdminPage = ({ user }: AdminPageProps) => {
 
 // Sub-components for Admin Panel
 
+const PLAYER_PLACEHOLDER = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=400&h=533";
+const OFFICIAL_PLACEHOLDER = "https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=200&h=200";
+
+const DeleteConfirmDialog = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  description 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirm: () => void; 
+  title: string; 
+  description: string;
+}) => {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
 const PlayerManager = ({ players }: { players: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     number: '',
@@ -251,41 +309,76 @@ const PlayerManager = ({ players }: { players: any[] }) => {
     photo: ''
   });
 
+  const handleEdit = (player: any) => {
+    setEditingId(player.id);
+    setFormData({
+      name: player.name,
+      number: player.number.toString(),
+      position: player.position,
+      matchesPlayed: player.matchesPlayed.toString(),
+      goals: player.goals.toString(),
+      assists: player.assists.toString(),
+      rating: player.rating.toString(),
+      photo: player.photo || ''
+    });
+    setIsAdding(true);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'players'), {
+      const data = {
         ...formData,
         number: Number(formData.number),
         matchesPlayed: Number(formData.matchesPlayed),
         goals: Number(formData.goals),
         assists: Number(formData.assists),
         rating: Number(formData.rating)
-      });
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'players', editingId), data);
+        toast.success('Player updated successfully');
+      } else {
+        await addDoc(collection(db, 'players'), data);
+        toast.success('Player added successfully');
+      }
+      
       setIsAdding(false);
+      setEditingId(null);
       setFormData({ name: '', number: '', position: 'Goalkeeper', matchesPlayed: '0', goals: '0', assists: '0', rating: '0.0', photo: '' });
-      toast.success('Player added successfully');
     } catch (error) {
-      toast.error('Error adding player');
+      toast.error(editingId ? 'Error updating player' : 'Error adding player');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this player?')) {
-      try {
-        await deleteDoc(doc(db, 'players', id));
-        toast.success('Player deleted');
-      } catch (error) {
-        toast.error('Error deleting player');
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, 'players', deleteId));
+      toast.success('Player deleted');
+    } catch (error) {
+      toast.error('Error deleting player');
+    } finally {
+      setDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-8">
+      <DeleteConfirmDialog 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Player"
+        description="Are you sure you want to delete this player? This action cannot be undone."
+      />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Squad</h2>
-        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+        <Button onClick={() => {
+          setIsAdding(!isAdding);
+          if (isAdding) setEditingId(null);
+        }} className="bg-red-600 hover:bg-red-700 rounded-full">
           {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
           {isAdding ? 'Cancel' : 'Add Player'}
         </Button>
@@ -319,6 +412,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               <ImageUpload 
                 folder="players" 
                 onUploadComplete={(url) => setFormData({...formData, photo: url})} 
+                initialImage={formData.photo}
               />
               {formData.photo && (
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
@@ -343,7 +437,9 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               <Input type="number" step="0.1" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} />
             </div>
             <div className="md:col-span-2 lg:col-span-4">
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Save Player</Button>
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+                {editingId ? 'Update Player' : 'Save Player'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -353,6 +449,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Photo</TableHead>
               <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Position</TableHead>
@@ -364,15 +461,28 @@ const PlayerManager = ({ players }: { players: any[] }) => {
           <TableBody>
             {players.map(player => (
               <TableRow key={player.id}>
+                <TableCell>
+                  <Avatar size="lg" className="rounded-lg">
+                    <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} alt={player.name} />
+                    <AvatarFallback className="rounded-lg bg-red-50 text-red-600 font-bold">
+                      {player.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </TableCell>
                 <TableCell className="font-bold text-red-600">{player.number}</TableCell>
                 <TableCell className="font-medium">{player.name}</TableCell>
                 <TableCell>{player.position}</TableCell>
                 <TableCell>{player.matchesPlayed}/{player.goals}/{player.assists}</TableCell>
                 <TableCell className="font-bold">{player.rating}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(player.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(player)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(player.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -385,6 +495,8 @@ const PlayerManager = ({ players }: { players: any[] }) => {
 
 const OfficialManager = ({ officials }: { officials: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -392,36 +504,62 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
     photo: ''
   });
 
+  const handleEdit = (official: any) => {
+    setEditingId(official.id);
+    setFormData({
+      name: official.name,
+      role: official.role,
+      contact: official.contact || '',
+      photo: official.photo || ''
+    });
+    setIsAdding(true);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'officials'), {
-        ...formData
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'officials', editingId), formData);
+        toast.success('Official updated successfully');
+      } else {
+        await addDoc(collection(db, 'officials'), formData);
+        toast.success('Official added successfully');
+      }
       setIsAdding(false);
+      setEditingId(null);
       setFormData({ name: '', role: '', contact: '', photo: '' });
-      toast.success('Official added successfully');
     } catch (error) {
-      toast.error('Error adding official');
+      toast.error(editingId ? 'Error updating official' : 'Error adding official');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this official?')) {
-      try {
-        await deleteDoc(doc(db, 'officials', id));
-        toast.success('Official deleted');
-      } catch (error) {
-        toast.error('Error deleting official');
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, 'officials', deleteId));
+      toast.success('Official deleted');
+    } catch (error) {
+      toast.error('Error deleting official');
+    } finally {
+      setDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-8">
+      <DeleteConfirmDialog 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Official"
+        description="Are you sure you want to delete this official? This action cannot be undone."
+      />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Officials</h2>
-        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+        <Button onClick={() => {
+          setIsAdding(!isAdding);
+          if (isAdding) setEditingId(null);
+        }} className="bg-red-600 hover:bg-red-700 rounded-full">
           {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
           {isAdding ? 'Cancel' : 'Add Official'}
         </Button>
@@ -447,6 +585,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
               <ImageUpload 
                 folder="officials" 
                 onUploadComplete={(url) => setFormData({...formData, photo: url})} 
+                initialImage={formData.photo}
               />
               {formData.photo && (
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
@@ -455,7 +594,9 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
               )}
             </div>
             <div className="md:col-span-2">
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Save Official</Button>
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+                {editingId ? 'Update Official' : 'Save Official'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -476,17 +617,25 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
             {officials.map(official => (
               <TableRow key={official.id}>
                 <TableCell>
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100">
-                    <img src={official.photo || 'https://via.placeholder.com/40'} alt={official.name} className="w-full h-full object-cover" />
-                  </div>
+                  <Avatar size="lg" className="rounded-lg">
+                    <AvatarImage src={official.photo || OFFICIAL_PLACEHOLDER} alt={official.name} />
+                    <AvatarFallback className="rounded-lg bg-blue-50 text-blue-600 font-bold">
+                      {official.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </TableCell>
                 <TableCell className="font-medium">{official.name}</TableCell>
                 <TableCell>{official.role}</TableCell>
                 <TableCell>{official.contact || 'N/A'}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(official.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(official)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(official.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -499,6 +648,8 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
 
 const MatchManager = ({ matches }: { matches: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     opponent: '',
     score: '',
@@ -510,40 +661,96 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
     videoUrl: ''
   });
 
+  const handleEdit = (match: any) => {
+    setEditingId(match.id);
+    setFormData({
+      opponent: match.opponent,
+      score: match.score || '',
+      date: format(match.date, "yyyy-MM-dd'T'HH:mm"),
+      competition: match.competition || '',
+      isUpcoming: match.isUpcoming,
+      venue: match.venue || '',
+      time: match.time || '',
+      videoUrl: match.videoUrl || ''
+    });
+    setIsAdding(true);
+  };
+
+  const handleAddNext = () => {
+    setFormData({ ...formData, isUpcoming: true, score: '', videoUrl: '' });
+    setEditingId(null);
+    setIsAdding(true);
+  };
+
+  const handleAddPrevious = () => {
+    setFormData({ ...formData, isUpcoming: false, venue: '', time: '' });
+    setEditingId(null);
+    setIsAdding(true);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'matches'), {
+      const data = {
         ...formData,
         date: new Date(formData.date)
-      });
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'matches', editingId), data);
+        toast.success('Match updated successfully');
+      } else {
+        await addDoc(collection(db, 'matches'), data);
+        toast.success('Match added successfully');
+      }
+      
       setIsAdding(false);
+      setEditingId(null);
       setFormData({ opponent: '', score: '', date: format(new Date(), "yyyy-MM-dd'T'HH:mm"), competition: '', isUpcoming: true, venue: '', time: '', videoUrl: '' });
-      toast.success('Match added successfully');
     } catch (error) {
-      toast.error('Error adding match');
+      toast.error(editingId ? 'Error updating match' : 'Error adding match');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Delete this match?')) {
-      try {
-        await deleteDoc(doc(db, 'matches', id));
-        toast.success('Match deleted');
-      } catch (error) {
-        toast.error('Error deleting match');
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, 'matches', deleteId));
+      toast.success('Match deleted');
+    } catch (error) {
+      toast.error('Error deleting match');
+    } finally {
+      setDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <DeleteConfirmDialog 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Match"
+        description="Are you sure you want to delete this match? This action cannot be undone."
+      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Manage Matches</h2>
-        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'Add Match'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleAddNext} className="bg-blue-600 hover:bg-blue-700 rounded-full text-xs sm:text-sm">
+            <Plus className="w-4 h-4 mr-2" /> Next Match
+          </Button>
+          <Button onClick={handleAddPrevious} className="bg-red-600 hover:bg-red-700 rounded-full text-xs sm:text-sm">
+            <Plus className="w-4 h-4 mr-2" /> Previous Match
+          </Button>
+          {isAdding && (
+            <Button variant="outline" onClick={() => {
+              setIsAdding(false);
+              setEditingId(null);
+            }} className="rounded-full">
+              <X className="w-4 h-4 mr-2" /> Cancel
+            </Button>
+          )}
+        </div>
       </div>
 
       {isAdding && (
@@ -605,89 +812,169 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
               </>
             )}
             <div className="md:col-span-2 lg:col-span-3">
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Save Match</Button>
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+                {editingId ? 'Update Match' : 'Save Match'}
+              </Button>
             </div>
           </form>
         </Card>
       )}
 
-      <Card className="border-none shadow-md bg-white overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Opponent</TableHead>
-              <TableHead>Competition</TableHead>
-              <TableHead>Result/Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {matches.map(match => (
-              <TableRow key={match.id}>
-                <TableCell>{format(match.date, 'MMM dd, yyyy')}</TableCell>
-                <TableCell className="font-bold">{match.opponent}</TableCell>
-                <TableCell>{match.competition}</TableCell>
-                <TableCell>
-                  {match.isUpcoming ? (
-                    <span className="text-blue-600 font-bold">Upcoming</span>
-                  ) : (
-                    <span className="text-gray-900 font-black">{match.score}</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(match.id)} className="text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="border-none shadow-md bg-white overflow-hidden">
+          <div className="p-4 bg-blue-50 border-b border-blue-100">
+            <h3 className="font-bold text-blue-900 flex items-center gap-2">
+              <Calendar className="w-4 h-4" /> Upcoming Fixtures
+            </h3>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Opponent</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+            </TableHeader>
+            <TableBody>
+              {matches.filter(m => m.isUpcoming).map(match => (
+                <TableRow key={match.id}>
+                  <TableCell className="text-xs">{format(match.date, 'MMM dd, yyyy')}</TableCell>
+                  <TableCell className="font-bold text-sm">{match.opponent}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(match)} className="text-blue-600 h-8 w-8">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {matches.filter(m => m.isUpcoming).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-8 text-gray-500 text-sm italic">No upcoming matches</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+
+        <Card className="border-none shadow-md bg-white overflow-hidden">
+          <div className="p-4 bg-red-50 border-b border-red-100">
+            <h3 className="font-bold text-red-900 flex items-center gap-2">
+              <Trophy className="w-4 h-4" /> Past Results
+            </h3>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Opponent</TableHead>
+                <TableHead>Score</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {matches.filter(m => !m.isUpcoming).map(match => (
+                <TableRow key={match.id}>
+                  <TableCell className="text-xs">{format(match.date, 'MMM dd, yyyy')}</TableCell>
+                  <TableCell className="font-bold text-sm">{match.opponent}</TableCell>
+                  <TableCell className="font-black text-sm">{match.score}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(match)} className="text-blue-600 h-8 w-8">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {matches.filter(m => !m.isUpcoming).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-gray-500 text-sm italic">No past results</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
     </div>
   );
 };
 
 const NewsManager = ({ news }: { news: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     image: ''
   });
 
+  const handleEdit = (item: any) => {
+    setEditingId(item.id);
+    setFormData({
+      title: item.title,
+      content: item.content,
+      image: item.image || ''
+    });
+    setIsAdding(true);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'news'), {
-        ...formData,
-        date: serverTimestamp()
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'news', editingId), formData);
+        toast.success('News updated successfully');
+      } else {
+        await addDoc(collection(db, 'news'), {
+          ...formData,
+          date: serverTimestamp()
+        });
+        toast.success('News posted');
+      }
       setIsAdding(false);
+      setEditingId(null);
       setFormData({ title: '', content: '', image: '' });
-      toast.success('News posted');
     } catch (error) {
-      toast.error('Error posting news');
+      toast.error(editingId ? 'Error updating news' : 'Error posting news');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Delete this article?')) {
-      try {
-        await deleteDoc(doc(db, 'news', id));
-        toast.success('Article deleted');
-      } catch (error) {
-        toast.error('Error deleting article');
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, 'news', deleteId));
+      toast.success('Article deleted');
+    } catch (error) {
+      toast.error('Error deleting article');
+    } finally {
+      setDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-8">
+      <DeleteConfirmDialog 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Article"
+        description="Are you sure you want to delete this news article? This action cannot be undone."
+      />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage News</h2>
-        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+        <Button onClick={() => {
+          setIsAdding(!isAdding);
+          if (isAdding) setEditingId(null);
+        }} className="bg-red-600 hover:bg-red-700 rounded-full">
           {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
           {isAdding ? 'Cancel' : 'Post News'}
         </Button>
@@ -705,6 +992,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <ImageUpload 
                 folder="news" 
                 onUploadComplete={(url) => setFormData({...formData, image: url})} 
+                initialImage={formData.image}
               />
               {formData.image && (
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
@@ -716,7 +1004,9 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <label className="text-xs font-bold text-gray-500 uppercase">Content</label>
               <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="min-h-[200px]" required />
             </div>
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Publish Article</Button>
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+              {editingId ? 'Update Article' : 'Publish Article'}
+            </Button>
           </form>
         </Card>
       )}
@@ -728,9 +1018,14 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <h3 className="font-bold text-lg">{item.title}</h3>
               <p className="text-sm text-gray-500">{format(item.date, 'MMM dd, yyyy')}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="text-red-600">
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-red-600">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
@@ -740,10 +1035,21 @@ const NewsManager = ({ news }: { news: any[] }) => {
 
 const GalleryManager = ({ items }: { items: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     url: '',
     caption: ''
   });
+
+  const handleEdit = (item: any) => {
+    setEditingId(item.id);
+    setFormData({
+      url: item.url,
+      caption: item.caption || ''
+    });
+    setIsAdding(true);
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -752,34 +1058,51 @@ const GalleryManager = ({ items }: { items: any[] }) => {
       return;
     }
     try {
-      await addDoc(collection(db, 'gallery'), {
-        ...formData,
-        date: serverTimestamp()
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'gallery', editingId), formData);
+        toast.success('Gallery item updated');
+      } else {
+        await addDoc(collection(db, 'gallery'), {
+          ...formData,
+          date: serverTimestamp()
+        });
+        toast.success('Image added to gallery');
+      }
       setIsAdding(false);
+      setEditingId(null);
       setFormData({ url: '', caption: '' });
-      toast.success('Image added to gallery');
     } catch (error) {
-      toast.error('Error adding to gallery');
+      toast.error(editingId ? 'Error updating gallery' : 'Error adding to gallery');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Delete this image?')) {
-      try {
-        await deleteDoc(doc(db, 'gallery', id));
-        toast.success('Image deleted');
-      } catch (error) {
-        toast.error('Error deleting image');
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, 'gallery', deleteId));
+      toast.success('Image deleted');
+    } catch (error) {
+      toast.error('Error deleting image');
+    } finally {
+      setDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-8">
+      <DeleteConfirmDialog 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Image"
+        description="Are you sure you want to delete this image? This action cannot be undone."
+      />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Gallery</h2>
-        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+        <Button onClick={() => {
+          setIsAdding(!isAdding);
+          if (isAdding) setEditingId(null);
+        }} className="bg-red-600 hover:bg-red-700 rounded-full">
           {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
           {isAdding ? 'Cancel' : 'Add Photo'}
         </Button>
@@ -793,6 +1116,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
               <ImageUpload 
                 folder="gallery" 
                 onUploadComplete={(url) => setFormData({...formData, url: url})} 
+                initialImage={formData.url}
               />
               {formData.url && (
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
@@ -804,7 +1128,9 @@ const GalleryManager = ({ items }: { items: any[] }) => {
               <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>
               <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." />
             </div>
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Add to Gallery</Button>
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+              {editingId ? 'Update Item' : 'Add to Gallery'}
+            </Button>
           </form>
         </Card>
       )}
@@ -813,9 +1139,12 @@ const GalleryManager = ({ items }: { items: any[] }) => {
         {items.map(item => (
           <div key={item.id} className="relative group aspect-square rounded-xl overflow-hidden shadow-sm">
             <img src={item.url} alt={item.caption} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="text-white hover:text-red-500">
-                <Trash2 className="w-6 h-6" />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-white hover:text-blue-400">
+                <Edit className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-white hover:text-red-500">
+                <Trash2 className="w-5 h-5" />
               </Button>
             </div>
           </div>

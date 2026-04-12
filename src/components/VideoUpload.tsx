@@ -37,6 +37,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, fold
     } catch (error) {
       console.error('Error uploading video:', error);
       toast.error('Failed to upload video');
+      setFileName(null);
     } finally {
       setUploading(false);
     }
@@ -45,32 +46,30 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onUploadComplete, fold
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <div className="relative w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 overflow-hidden flex items-center justify-center bg-gray-50">
-          <Video className={`w-8 h-8 ${fileName ? 'text-red-600' : 'text-gray-300'}`} />
+        <label className="relative w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 overflow-hidden flex items-center justify-center bg-gray-50 cursor-pointer hover:border-red-300 transition-colors group">
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="hidden"
+          />
+          <div className="flex flex-col items-center gap-1">
+            <Video className={`w-6 h-6 ${fileName ? 'text-red-600' : 'text-gray-300 group-hover:text-red-400'} transition-colors`} />
+            <span className="text-[10px] font-bold text-gray-400 uppercase">
+              {fileName ? 'Change' : 'Select'}
+            </span>
+          </div>
           {uploading && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <Loader2 className="w-6 h-6 text-white animate-spin" />
             </div>
           )}
-        </div>
+        </label>
         <div className="flex-grow">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Upload Highlights
-          </label>
-          <div className="relative">
-            <Input
-              type="file"
-              accept="video/*"
-              onChange={handleFileChange}
-              disabled={uploading}
-              className="cursor-pointer"
-            />
-          </div>
-          {fileName && !uploading && (
-            <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> {fileName}
-            </p>
-          )}
+          <p className="text-sm font-medium text-gray-700">
+            {uploading ? 'Uploading highlights...' : fileName ? `Selected: ${fileName}` : 'Upload Match Highlights'}
+          </p>
           <p className="mt-1 text-xs text-gray-500">
             MP4, WebM or OGG. Max 20MB.
           </p>

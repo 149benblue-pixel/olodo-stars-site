@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon } from 'lucide-react';
+import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 
 interface Match {
   id: string;
@@ -38,7 +39,7 @@ const PerformancePage = () => {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
   useEffect(() => {
-    const matchesQuery = query(collection(db, 'matches'), orderBy('date', 'desc'));
+    const matchesQuery = query(collection(db, 'matches'), orderBy('date', 'asc'));
     
     const unsubMatches = onSnapshot(matchesQuery, (snapshot) => {
       setMatches(snapshot.docs.map(doc => ({ 
@@ -73,7 +74,20 @@ const PerformancePage = () => {
   }, []);
 
   const upcomingMatches = matches.filter(m => m.isUpcoming).sort((a, b) => a.date.getTime() - b.date.getTime());
-  const pastMatches = matches.filter(m => !m.isUpcoming);
+  const pastMatches = matches.filter(m => !m.isUpcoming).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const chartData = useMemo(() => {
+    const past = matches.filter(m => !m.isUpcoming).sort((a, b) => a.date.getTime() - b.date.getTime());
+    return past.map(m => {
+      const scores = m.score?.split('-').map(Number) || [0, 0];
+      return {
+        date: format(m.date, 'MMM dd'),
+        scored: scores[0],
+        conceded: scores[1],
+        opponent: m.opponent
+      };
+    }).slice(-10); // Last 10 matches
+  }, [matches]);
 
   if (loading) {
     return (
@@ -96,7 +110,7 @@ const PerformancePage = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <Card className="border-none shadow-md bg-white">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 bg-red-100 rounded-2xl text-red-600">
@@ -125,8 +139,8 @@ const PerformancePage = () => {
                 <Shield className="w-8 h-8" />
               </div>
               <div>
-                <div className="text-sm text-gray-500 font-bold uppercase tracking-widest">Clean Sheets</div>
-                <div className="text-3xl font-black text-gray-900">12</div>
+                <div className="text-sm text-gray-500 font-bold uppercase tracking-widest">Goals Conceded</div>
+                <div className="text-3xl font-black text-gray-900">{stats?.goalsConceded || 0}</div>
               </div>
             </CardContent>
           </Card>
@@ -144,6 +158,92 @@ const PerformancePage = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Graph */}
+        <Card className="border-none shadow-lg bg-white mb-16 overflow-hidden">
+          <CardHeader className="border-b border-gray-100 bg-gray-50/50 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600 rounded-lg text-white">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold">Goal Trend</CardTitle>
+                  <p className="text-sm text-gray-500">Goals scored vs conceded over the last 10 matches</p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-600" />
+                  <span className="text-xs font-bold text-gray-600 uppercase">Scored</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gray-300" />
+                  <span className="text-xs font-bold text-gray-600 uppercase">Conceded</span>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="h-[500px] w-full">
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorScored" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#dc2626" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
+                      }}
+                      itemStyle={{ fontWeight: 'bold' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="scored" 
+                      stroke="#dc2626" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorScored)" 
+                      name="Goals Scored"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="conceded" 
+                      stroke="#d1d5db" 
+                      strokeWidth={2}
+                      fillOpacity={0} 
+                      name="Goals Conceded"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400 italic">
+                  Not enough match data to display trend.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Upcoming Matches */}
@@ -219,13 +319,13 @@ const PerformancePage = () => {
                       <div className="flex-1 text-right font-bold text-lg">Olodo Hot Stars</div>
                       <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${
-                          match.score?.split('-')[0] > match.score?.split('-')[1] ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-900'
+                          Number(match.score?.split('-')[0]) > Number(match.score?.split('-')[1]) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-900'
                         }`}>
                           {match.score?.split('-')[0] || '0'}
                         </div>
                         <div className="text-gray-300 font-bold">-</div>
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${
-                          match.score?.split('-')[1] > match.score?.split('-')[0] ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-900'
+                          Number(match.score?.split('-')[1]) > Number(match.score?.split('-')[0]) ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-900'
                         }`}>
                           {match.score?.split('-')[1] || '0'}
                         </div>
@@ -282,3 +382,4 @@ const PerformancePage = () => {
 };
 
 export default PerformancePage;
+

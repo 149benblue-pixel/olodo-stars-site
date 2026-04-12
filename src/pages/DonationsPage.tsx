@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Heart, Smartphone, Landmark, Send, CheckCircle2 } from 'lucide-react';
+import { Heart, Smartphone, Landmark, Send, CheckCircle2, Phone, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,7 +54,10 @@ const DonationsPage = () => {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Thank You!</h2>
           <p className="text-gray-600 mb-8">
-            Your contribution of <span className="font-bold text-gray-900">KES {amount}</span> has been recorded. Every contribution helps Olodo Hot Stars grow and succeed.
+            Your contribution of <span className="font-bold text-gray-900">KES {amount}</span> has been recorded. 
+            <br /><br />
+            Please complete your donation by sending to:
+            <span className="block text-2xl font-black text-red-600 mt-2">+254 716 773 610</span>
           </p>
           <Button 
             onClick={() => setIsSuccess(false)}
@@ -144,47 +147,43 @@ const DonationsPage = () => {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-8"
           >
-            <div className="bg-white rounded-3xl p-8 shadow-md border border-gray-100">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-green-100 rounded-2xl text-green-600">
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-4 bg-red-100 rounded-2xl text-red-600">
                   <Smartphone className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">M-Pesa Payment</h3>
-                  <p className="text-gray-500 text-sm">Quick and easy mobile payment</p>
+                  <h3 className="text-2xl font-bold text-gray-900">Direct Support</h3>
+                  <p className="text-gray-500">Send your donation directly via M-Pesa</p>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="font-bold text-gray-600">Paybill Number</span>
-                  <span className="font-black text-xl text-red-600">123456</span>
+              
+              <div className="p-8 bg-gray-50 rounded-3xl border border-gray-100 text-center mb-8">
+                <p className="text-gray-600 mb-4 font-medium text-lg">
+                  Support Olodo Hot Stars by sending your donation to:
+                </p>
+                <div className="text-3xl md:text-4xl font-black text-red-600 mb-4 tracking-tight">
+                  +254 716 773 610
                 </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="font-bold text-gray-600">Account Name</span>
-                  <span className="font-black text-xl text-red-600">OLODO</span>
-                </div>
+                <p className="text-gray-500 italic">
+                  Thank you for your support!
+                </p>
               </div>
-            </div>
 
-            <div className="bg-white rounded-3xl p-8 shadow-md border border-gray-100">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-blue-100 rounded-2xl text-blue-600">
-                  <Landmark className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Bank Transfer</h3>
-                  <p className="text-gray-500 text-sm">Direct bank deposit</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="font-bold text-gray-600">Bank Name</span>
-                  <span className="font-black text-lg text-gray-900">Equity Bank</span>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="font-bold text-gray-600">Account Number</span>
-                  <span className="font-black text-lg text-gray-900">0123 4567 8901</span>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-14 rounded-2xl border-gray-200 font-bold text-gray-700 hover:bg-gray-50"
+                  onClick={() => window.location.href = 'tel:+254716773610'}
+                >
+                  <Phone className="w-5 h-5 mr-2" /> Call to Donate
+                </Button>
+                <Button 
+                  className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 font-bold"
+                  onClick={() => window.open('https://wa.me/254716773610?text=I%20would%20like%20to%20support%20Olodo%20Hot%20Stars', '_blank')}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" /> WhatsApp
+                </Button>
               </div>
             </div>
 

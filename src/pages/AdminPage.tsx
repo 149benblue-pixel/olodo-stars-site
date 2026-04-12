@@ -24,6 +24,7 @@ import {
   Edit, 
   Save, 
   X,
+  Shield,
   LayoutDashboard,
   Settings as SettingsIcon,
   BarChart3
@@ -35,6 +36,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ImageUpload } from '@/components/ImageUpload';
+import { VideoUpload } from '@/components/VideoUpload';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -48,6 +51,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
   const [officials, setOfficials] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
+  const [gallery, setGallery] = useState<any[]>([]);
   const [donations, setDonations] = useState<any[]>([]);
   const [teamStats, setTeamStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +73,9 @@ const AdminPage = ({ user }: AdminPageProps) => {
     const unsubNews = onSnapshot(query(collection(db, 'news'), orderBy('date', 'desc')), (s) => {
       setNews(s.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() || new Date() })));
     });
+    const unsubGallery = onSnapshot(query(collection(db, 'gallery'), orderBy('date', 'desc')), (s) => {
+      setGallery(s.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() || new Date() })));
+    });
     const unsubDonations = onSnapshot(query(collection(db, 'donations'), orderBy('date', 'desc')), (s) => {
       setDonations(s.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() || new Date() })));
     });
@@ -82,6 +89,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
       unsubOfficials();
       unsubMatches();
       unsubNews();
+      unsubGallery();
       unsubDonations();
       unsubStats();
     };
@@ -135,11 +143,17 @@ const AdminPage = ({ user }: AdminPageProps) => {
             <TabsTrigger value="players" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
               <Users className="w-4 h-4" /> Players
             </TabsTrigger>
+            <TabsTrigger value="officials" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Officials
+            </TabsTrigger>
             <TabsTrigger value="matches" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
               <Trophy className="w-4 h-4" /> Matches
             </TabsTrigger>
             <TabsTrigger value="news" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
               <Newspaper className="w-4 h-4" /> News
+            </TabsTrigger>
+            <TabsTrigger value="gallery" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
+              <Trophy className="w-4 h-4" /> Gallery
             </TabsTrigger>
             <TabsTrigger value="donations" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
               <Heart className="w-4 h-4" /> Donations
@@ -159,7 +173,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-black text-gray-900">{players.length} Players</div>
-                  <p className="text-sm text-gray-500 mt-2">Active members in the first team.</p>
+                  <p className="text-sm text-gray-500 mt-2">{officials.length} Officials & Staff</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-md bg-white">
@@ -193,12 +207,20 @@ const AdminPage = ({ user }: AdminPageProps) => {
             <PlayerManager players={players} />
           </TabsContent>
 
+          <TabsContent value="officials">
+            <OfficialManager officials={officials} />
+          </TabsContent>
+
           <TabsContent value="matches">
             <MatchManager matches={matches} />
           </TabsContent>
 
           <TabsContent value="news">
             <NewsManager news={news} />
+          </TabsContent>
+
+          <TabsContent value="gallery">
+            <GalleryManager items={gallery} />
           </TabsContent>
 
           <TabsContent value="donations">
@@ -292,9 +314,17 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Photo URL</label>
-              <Input value={formData.photo} onChange={e => setFormData({...formData, photo: e.target.value})} placeholder="https://..." />
+            <div className="space-y-2 md:col-span-2 lg:col-span-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Player Photo</label>
+              <ImageUpload 
+                folder="players" 
+                onUploadComplete={(url) => setFormData({...formData, photo: url})} 
+              />
+              {formData.photo && (
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <Save className="w-3 h-3" /> Image ready
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Matches</label>
@@ -353,6 +383,120 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   );
 };
 
+const OfficialManager = ({ officials }: { officials: any[] }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    role: '',
+    contact: '',
+    photo: ''
+  });
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'officials'), {
+        ...formData
+      });
+      setIsAdding(false);
+      setFormData({ name: '', role: '', contact: '', photo: '' });
+      toast.success('Official added successfully');
+    } catch (error) {
+      toast.error('Error adding official');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this official?')) {
+      try {
+        await deleteDoc(doc(db, 'officials', id));
+        toast.success('Official deleted');
+      } catch (error) {
+        toast.error('Error deleting official');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Manage Officials</h2>
+        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          {isAdding ? 'Cancel' : 'Add Official'}
+        </Button>
+      </div>
+
+      {isAdding && (
+        <Card className="border-none shadow-lg bg-white p-6">
+          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Full Name</label>
+              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Role (e.g. Coach, Manager)</label>
+              <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Contact (Optional)</label>
+              <Input value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="+254..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Official Photo</label>
+              <ImageUpload 
+                folder="officials" 
+                onUploadComplete={(url) => setFormData({...formData, photo: url})} 
+              />
+              {formData.photo && (
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <Save className="w-3 h-3" /> Image ready
+                </p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Save Official</Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      <Card className="border-none shadow-md bg-white overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Photo</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {officials.map(official => (
+              <TableRow key={official.id}>
+                <TableCell>
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100">
+                    <img src={official.photo || 'https://via.placeholder.com/40'} alt={official.name} className="w-full h-full object-cover" />
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">{official.name}</TableCell>
+                <TableCell>{official.role}</TableCell>
+                <TableCell>{official.contact || 'N/A'}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(official.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+};
+
 const MatchManager = ({ matches }: { matches: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({
@@ -362,7 +506,8 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
     competition: '',
     isUpcoming: true,
     venue: '',
-    time: ''
+    time: '',
+    videoUrl: ''
   });
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -373,7 +518,7 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
         date: new Date(formData.date)
       });
       setIsAdding(false);
-      setFormData({ opponent: '', score: '', date: format(new Date(), "yyyy-MM-dd'T'HH:mm"), competition: '', isUpcoming: true, venue: '', time: '' });
+      setFormData({ opponent: '', score: '', date: format(new Date(), "yyyy-MM-dd'T'HH:mm"), competition: '', isUpcoming: true, venue: '', time: '', videoUrl: '' });
       toast.success('Match added successfully');
     } catch (error) {
       toast.error('Error adding match');
@@ -430,6 +575,21 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase">Score (e.g. 2-1)</label>
                 <Input value={formData.score} onChange={e => setFormData({...formData, score: e.target.value})} />
+              </div>
+            )}
+            {!formData.isUpcoming && (
+              <div className="space-y-2 md:col-span-2 lg:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase">Match Highlights (Video)</label>
+                <div className="space-y-4">
+                  <Input 
+                    value={formData.videoUrl} 
+                    onChange={e => setFormData({...formData, videoUrl: e.target.value})} 
+                    placeholder="Paste YouTube/Vimeo URL or upload below"
+                  />
+                  <VideoUpload 
+                    onUploadComplete={(url) => setFormData({...formData, videoUrl: url})} 
+                  />
+                </div>
               </div>
             )}
             {formData.isUpcoming && (
@@ -541,8 +701,16 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Image URL</label>
-              <Input value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} placeholder="https://..." />
+              <label className="text-xs font-bold text-gray-500 uppercase">Article Image</label>
+              <ImageUpload 
+                folder="news" 
+                onUploadComplete={(url) => setFormData({...formData, image: url})} 
+              />
+              {formData.image && (
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <Save className="w-3 h-3" /> Image ready
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Content</label>
@@ -564,6 +732,93 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <Trash2 className="w-4 h-4" />
             </Button>
           </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const GalleryManager = ({ items }: { items: any[] }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [formData, setFormData] = useState({
+    url: '',
+    caption: ''
+  });
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.url) {
+      toast.error('Please upload an image first');
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'gallery'), {
+        ...formData,
+        date: serverTimestamp()
+      });
+      setIsAdding(false);
+      setFormData({ url: '', caption: '' });
+      toast.success('Image added to gallery');
+    } catch (error) {
+      toast.error('Error adding to gallery');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Delete this image?')) {
+      try {
+        await deleteDoc(doc(db, 'gallery', id));
+        toast.success('Image deleted');
+      } catch (error) {
+        toast.error('Error deleting image');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Manage Gallery</h2>
+        <Button onClick={() => setIsAdding(!isAdding)} className="bg-red-600 hover:bg-red-700 rounded-full">
+          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          {isAdding ? 'Cancel' : 'Add Photo'}
+        </Button>
+      </div>
+
+      {isAdding && (
+        <Card className="border-none shadow-lg bg-white p-6">
+          <form onSubmit={handleAdd} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo</label>
+              <ImageUpload 
+                folder="gallery" 
+                onUploadComplete={(url) => setFormData({...formData, url: url})} 
+              />
+              {formData.url && (
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <Save className="w-3 h-3" /> Image ready
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>
+              <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." />
+            </div>
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Add to Gallery</Button>
+          </form>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {items.map(item => (
+          <div key={item.id} className="relative group aspect-square rounded-xl overflow-hidden shadow-sm">
+            <img src={item.url} alt={item.caption} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="text-white hover:text-red-500">
+                <Trash2 className="w-6 h-6" />
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
     </div>

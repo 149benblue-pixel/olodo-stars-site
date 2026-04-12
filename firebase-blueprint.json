@@ -42,7 +42,8 @@
         "competition": { "type": "string" },
         "isUpcoming": { "type": "boolean" },
         "venue": { "type": "string" },
-        "time": { "type": "string" }
+        "time": { "type": "string" },
+        "videoUrl": { "type": "string", "format": "uri" }
       },
       "required": ["opponent", "date", "isUpcoming"]
     },
@@ -85,6 +86,18 @@
         "goalsConceded": { "type": "number" },
         "averageRating": { "type": "number" }
       }
+    },
+    "GalleryImage": {
+      "title": "GalleryImage",
+      "description": "An image in the club gallery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "caption": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url", "date"]
     }
   },
   "firestore": {
@@ -107,6 +120,10 @@
     "/donations/{donationId}": {
       "schema": "Donation",
       "description": "Collection of donations"
+    },
+    "/gallery/{imageId}": {
+      "schema": "GalleryImage",
+      "description": "Collection of gallery images"
     },
     "/settings/teamStats": {
       "schema": "TeamStats",

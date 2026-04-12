@@ -27,6 +27,9 @@ interface Official {
   contact?: string;
 }
 
+const PLAYER_PLACEHOLDER = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=400&h=533";
+const OFFICIAL_PLACEHOLDER = "https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=200&h=200";
+
 const TeamPage = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [officials, setOfficials] = useState<Official[]>([]);
@@ -114,10 +117,13 @@ const TeamPage = () => {
                     <Card className="overflow-hidden border-none shadow-lg hover:shadow-xl transition-all bg-white group">
                       <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
                         <img
-                          src={player.photo || `https://picsum.photos/seed/${player.id}/400/533`}
+                          src={player.photo || PLAYER_PLACEHOLDER}
                           alt={player.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = PLAYER_PLACEHOLDER;
+                          }}
                         />
                         <div className="absolute top-4 right-4">
                           <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-white">
@@ -175,10 +181,13 @@ const TeamPage = () => {
                     <Card className="overflow-hidden border-none shadow-md hover:shadow-lg transition-all bg-white flex items-center p-4 gap-6">
                       <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                         <img
-                          src={official.photo || `https://picsum.photos/seed/${official.id}/200/200`}
+                          src={official.photo || OFFICIAL_PLACEHOLDER}
                           alt={official.name}
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = OFFICIAL_PLACEHOLDER;
+                          }}
                         />
                       </div>
                       <div className="flex-grow">

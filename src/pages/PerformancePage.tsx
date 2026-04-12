@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap } from 'lucide-react';
+import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 
 interface Match {
@@ -16,6 +18,7 @@ interface Match {
   isUpcoming: boolean;
   venue?: string;
   time?: string;
+  videoUrl?: string;
 }
 
 interface TeamStats {
@@ -32,6 +35,7 @@ const PerformancePage = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<TeamStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
   useEffect(() => {
     const matchesQuery = query(collection(db, 'matches'), orderBy('date', 'desc'));
@@ -228,12 +232,50 @@ const PerformancePage = () => {
                       </div>
                       <div className="flex-1 text-left font-bold text-lg">{match.opponent}</div>
                     </div>
+                    {match.videoUrl && (
+                      <div className="mt-6 flex justify-center">
+                        <Button 
+                          onClick={() => setSelectedVideo(match.videoUrl!)}
+                          className="bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center gap-2"
+                        >
+                          <Play className="w-4 h-4 fill-current" /> Watch Highlights
+                        </Button>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>
             )}
           </div>
         </div>
+
+        {/* Video Modal */}
+        <Dialog open={!!selectedVideo} onOpenChange={(open) => !open && setSelectedVideo(null)}>
+          <DialogContent className="max-w-4xl p-0 bg-black border-none overflow-hidden rounded-3xl">
+            <DialogHeader className="p-4 bg-white/10 backdrop-blur-md absolute top-0 left-0 right-0 z-10 border-b border-white/10">
+              <DialogTitle className="text-white flex items-center justify-between">
+                Match Highlights
+              </DialogTitle>
+            </DialogHeader>
+            <div className="aspect-video w-full mt-14">
+              {selectedVideo?.includes('youtube.com') || selectedVideo?.includes('youtu.be') ? (
+                <iframe
+                  src={selectedVideo.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  className="w-full h-full"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              ) : (
+                <video 
+                  src={selectedVideo || ''} 
+                  controls 
+                  className="w-full h-full"
+                  autoPlay
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

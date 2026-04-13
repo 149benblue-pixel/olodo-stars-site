@@ -13,8 +13,7 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { db, storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '../firebase';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +44,8 @@ import {
   LayoutDashboard,
   Settings as SettingsIcon,
   BarChart3,
-  Camera
+  Image as ImageIcon,
+  Check
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -54,8 +54,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ImageUpload } from '@/components/ImageUpload';
-import { VideoUpload } from '@/components/VideoUpload';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -172,7 +170,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
               <Newspaper className="w-4 h-4" /> News
             </TabsTrigger>
             <TabsTrigger value="gallery" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Trophy className="w-4 h-4" /> Gallery
+              <ImageIcon className="w-4 h-4" /> Gallery
             </TabsTrigger>
             <TabsTrigger value="donations" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
               <Heart className="w-4 h-4" /> Donations
@@ -305,12 +303,12 @@ const PlayerManager = ({ players }: { players: any[] }) => {
     name: '',
     number: '',
     position: 'Goalkeeper',
+    photo: '',
     matchesPlayed: '0',
     goals: '0',
     assists: '0',
     cleanSheets: '0',
     rating: '0.0',
-    photo: '',
     availability: true
   });
 
@@ -320,12 +318,12 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       name: player.name,
       number: player.number.toString(),
       position: player.position,
+      photo: player.photo || '',
       matchesPlayed: player.matchesPlayed.toString(),
       goals: player.goals.toString(),
       assists: player.assists.toString(),
       cleanSheets: (player.cleanSheets || 0).toString(),
       rating: player.rating.toString(),
-      photo: player.photo || '',
       availability: player.availability !== undefined ? player.availability : true
     });
     setIsAdding(true);
@@ -358,12 +356,12 @@ const PlayerManager = ({ players }: { players: any[] }) => {
         name: '', 
         number: '', 
         position: 'Goalkeeper', 
+        photo: '',
         matchesPlayed: '0', 
         goals: '0', 
         assists: '0', 
         cleanSheets: '0', 
         rating: '0.0', 
-        photo: '',
         availability: true
       });
     } catch (error) {
@@ -380,28 +378,6 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       toast.error('Error deleting player');
     } finally {
       setDeleteId(null);
-    }
-  };
-
-  const handleDirectPhotoUpload = async (playerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const toastId = toast.loading('Uploading photo...');
-    try {
-      const storageRef = ref(storage, `players/${Date.now()}-${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      await updateDoc(doc(db, 'players', playerId), { photo: downloadURL });
-      toast.success('Photo updated successfully', { id: toastId });
-    } catch (error: any) {
-      console.error('Error uploading photo:', error);
-      if (error.code === 'storage/retry-limit-exceeded') {
-        toast.error('Upload failed: Connection timed out. Please ensure Firebase Storage is enabled.', { id: toastId });
-      } else {
-        toast.error('Failed to upload photo', { id: toastId });
-      }
     }
   };
 
@@ -448,22 +424,9 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2 lg:col-span-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Player Photo</label>
-              <ImageUpload 
-                folder="players" 
-                onUploadComplete={(url) => setFormData({...formData, photo: url})} 
-                initialImage={formData.photo}
-              />
-              {formData.photo && (
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <Save className="w-3 h-3" /> Image ready
-                </p>
-              )}
-            </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Matches</label>
-              <Input type="number" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} />
+              <label className="text-xs font-bold text-gray-500 uppercase">Photo URL</label>
+              <Input value={formData.photo} onChange={e => setFormData({...formData, photo: e.target.value})} placeholder="https://images.unsplash.com/..." />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals</label>
@@ -504,7 +467,6 @@ const PlayerManager = ({ players }: { players: any[] }) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Photo</TableHead>
               <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Position</TableHead>
@@ -517,25 +479,6 @@ const PlayerManager = ({ players }: { players: any[] }) => {
           <TableBody>
             {players.map(player => (
               <TableRow key={player.id}>
-                <TableCell>
-                  <div className="relative group w-12 h-12">
-                    <Avatar size="lg" className="rounded-lg w-full h-full">
-                      <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} alt={player.name} className="object-cover" />
-                      <AvatarFallback className="rounded-lg bg-red-50 text-red-600 font-bold">
-                        {player.name.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg transition-all cursor-pointer border-2 border-white/50">
-                      <Camera className="w-5 h-5 text-white" />
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={(e) => handleDirectPhotoUpload(player.id, e)}
-                      />
-                    </label>
-                  </div>
-                </TableCell>
                 <TableCell className="font-bold text-red-600">{player.number}</TableCell>
                 <TableCell className="font-medium">{player.name}</TableCell>
                 <TableCell>{player.position}</TableCell>
@@ -572,8 +515,8 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   const [formData, setFormData] = useState({
     name: '',
     role: '',
-    contact: '',
-    photo: ''
+    photo: '',
+    contact: ''
   });
 
   const handleEdit = (official: any) => {
@@ -581,8 +524,8 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
     setFormData({
       name: official.name,
       role: official.role,
-      contact: official.contact || '',
-      photo: official.photo || ''
+      photo: official.photo || '',
+      contact: official.contact || ''
     });
     setIsAdding(true);
   };
@@ -599,7 +542,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
       }
       setIsAdding(false);
       setEditingId(null);
-      setFormData({ name: '', role: '', contact: '', photo: '' });
+      setFormData({ name: '', role: '', photo: '', contact: '' });
     } catch (error) {
       toast.error(editingId ? 'Error updating official' : 'Error adding official');
     }
@@ -649,21 +592,12 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
               <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Contact (Optional)</label>
-              <Input value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="+254..." />
+              <label className="text-xs font-bold text-gray-500 uppercase">Photo URL</label>
+              <Input value={formData.photo} onChange={e => setFormData({...formData, photo: e.target.value})} placeholder="https://images.unsplash.com/..." />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Official Photo</label>
-              <ImageUpload 
-                folder="officials" 
-                onUploadComplete={(url) => setFormData({...formData, photo: url})} 
-                initialImage={formData.photo}
-              />
-              {formData.photo && (
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <Save className="w-3 h-3" /> Image ready
-                </p>
-              )}
+              <label className="text-xs font-bold text-gray-500 uppercase">Contact (Optional)</label>
+              <Input value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="+254..." />
             </div>
             <div className="md:col-span-2">
               <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
@@ -678,7 +612,6 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Photo</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Contact</TableHead>
@@ -688,14 +621,6 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
           <TableBody>
             {officials.map(official => (
               <TableRow key={official.id}>
-                <TableCell>
-                  <Avatar size="lg" className="rounded-lg">
-                    <AvatarImage src={official.photo || OFFICIAL_PLACEHOLDER} alt={official.name} />
-                    <AvatarFallback className="rounded-lg bg-blue-50 text-blue-600 font-bold">
-                      {official.name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </TableCell>
                 <TableCell className="font-medium">{official.name}</TableCell>
                 <TableCell>{official.role}</TableCell>
                 <TableCell>{official.contact || 'N/A'}</TableCell>
@@ -858,18 +783,12 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
             )}
             {!formData.isUpcoming && (
               <div className="space-y-2 md:col-span-2 lg:col-span-2">
-                <label className="text-xs font-bold text-gray-500 uppercase">Match Highlights (Video)</label>
-                <div className="space-y-4">
-                  <Input 
-                    value={formData.videoUrl} 
-                    onChange={e => setFormData({...formData, videoUrl: e.target.value})} 
-                    placeholder="Paste YouTube/Vimeo URL or upload below"
-                  />
-                  <VideoUpload 
-                    onUploadComplete={(url) => setFormData({...formData, videoUrl: url})} 
-                    initialVideo={formData.videoUrl}
-                  />
-                </div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Match Highlights (Video URL)</label>
+                <Input 
+                  value={formData.videoUrl} 
+                  onChange={e => setFormData({...formData, videoUrl: e.target.value})} 
+                  placeholder="Paste YouTube/Vimeo URL"
+                />
               </div>
             )}
             {formData.isUpcoming && (
@@ -1009,7 +928,8 @@ const NewsManager = ({ news }: { news: any[] }) => {
       } else {
         await addDoc(collection(db, 'news'), {
           ...formData,
-          date: serverTimestamp()
+          date: serverTimestamp(),
+          approved: true // Admin posts are auto-approved
         });
         toast.success('News posted');
       }
@@ -1018,6 +938,15 @@ const NewsManager = ({ news }: { news: any[] }) => {
       setFormData({ title: '', content: '', image: '' });
     } catch (error) {
       toast.error(editingId ? 'Error updating news' : 'Error posting news');
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'news', id), { approved: true });
+      toast.success('Article approved and published');
+    } catch (error) {
+      toast.error('Error approving article');
     }
   };
 
@@ -1061,17 +990,8 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Article Image</label>
-              <ImageUpload 
-                folder="news" 
-                onUploadComplete={(url) => setFormData({...formData, image: url})} 
-                initialImage={formData.image}
-              />
-              {formData.image && (
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <Save className="w-3 h-3" /> Image ready
-                </p>
-              )}
+              <label className="text-xs font-bold text-gray-500 uppercase">Cover Image URL</label>
+              <Input value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} placeholder="https://images.unsplash.com/..." />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Content</label>
@@ -1086,12 +1006,27 @@ const NewsManager = ({ news }: { news: any[] }) => {
 
       <div className="grid grid-cols-1 gap-4">
         {news.map(item => (
-          <Card key={item.id} className="border-none shadow-sm bg-white p-6 flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-lg">{item.title}</h3>
+          <Card key={item.id} className={`border-none shadow-sm p-6 flex justify-between items-center ${!item.approved ? 'bg-yellow-50 border-l-4 border-l-yellow-400' : 'bg-white'}`}>
+            <div className="flex-grow">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-lg">{item.title}</h3>
+                {!item.approved && (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-100">Pending Approval</Badge>
+                )}
+              </div>
               <p className="text-sm text-gray-500">{format(item.date, 'MMM dd, yyyy')}</p>
             </div>
             <div className="flex gap-2">
+              {!item.approved && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleApprove(item.id)}
+                  className="text-green-600 border-green-200 hover:bg-green-50"
+                >
+                  <Check className="w-4 h-4 mr-2" /> Approve
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                 <Edit className="w-4 h-4" />
               </Button>
@@ -1127,7 +1062,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.url) {
-      toast.error('Please upload an image first');
+      toast.error('Please provide an image URL');
       return;
     }
     try {
@@ -1185,17 +1120,13 @@ const GalleryManager = ({ items }: { items: any[] }) => {
         <Card className="border-none shadow-lg bg-white p-6">
           <form onSubmit={handleAdd} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo</label>
-              <ImageUpload 
-                folder="gallery" 
-                onUploadComplete={(url) => setFormData({...formData, url: url})} 
-                initialImage={formData.url}
+              <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo URL</label>
+              <Input 
+                value={formData.url} 
+                onChange={e => setFormData({...formData, url: e.target.value})} 
+                placeholder="https://images.unsplash.com/..."
+                required
               />
-              {formData.url && (
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <Save className="w-3 h-3" /> Image ready
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>
@@ -1216,7 +1147,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
               <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-white hover:text-blue-400">
                 <Edit className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-white hover:text-red-500">
+              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-white hover:text-red-400">
                 <Trash2 className="w-5 h-5" />
               </Button>
             </div>

@@ -13,7 +13,6 @@ interface Player {
   name: string;
   number: number;
   position: string;
-  photo?: string;
   matchesPlayed?: number;
   goals?: number;
   assists?: number;
@@ -26,7 +25,6 @@ interface Official {
   id: string;
   name: string;
   role: string;
-  photo?: string;
   contact?: string;
 }
 

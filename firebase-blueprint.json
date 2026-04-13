@@ -56,9 +56,10 @@
         "title": { "type": "string" },
         "content": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "image": { "type": "string", "format": "uri" }
+        "image": { "type": "string", "format": "uri" },
+        "approved": { "type": "boolean", "description": "Whether the post has been approved by an admin" }
       },
-      "required": ["title", "content", "date"]
+      "required": ["title", "content", "date", "approved"]
     },
     "Donation": {
       "title": "Donation",

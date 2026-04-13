@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Newspaper, Calendar, ArrowRight, Search } from 'lucide-react';
+import { Newspaper, Calendar, ArrowRight, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface NewsItem {
   id: string;
@@ -12,12 +17,19 @@ interface NewsItem {
   content: string;
   date: any;
   image?: string;
+  approved?: boolean;
 }
 
 const NewsPage = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    image: ''
+  });
 
   useEffect(() => {
     const newsQuery = query(collection(db, 'news'), orderBy('date', 'desc'));
@@ -34,10 +46,28 @@ const NewsPage = () => {
     return () => unsubscribe();
   }, []);
 
-  const filteredNews = news.filter(item => 
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'news'), {
+        ...formData,
+        date: serverTimestamp(),
+        approved: false // Public submissions require approval
+      });
+      toast.success('News submitted! It will appear once approved by an admin.');
+      setIsSubmitting(false);
+      setFormData({ title: '', content: '', image: '' });
+    } catch (error) {
+      toast.error('Error submitting news. Please try again.');
+    }
+  };
+
+  const filteredNews = news.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const isApproved = item.approved !== false; // Show approved or legacy posts
+    return matchesSearch && isApproved;
+  });
 
   if (loading) {
     return (
@@ -54,9 +84,15 @@ const NewsPage = () => {
           <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl mb-4 tracking-tight">
             Club <span className="text-red-600">News</span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
             The latest stories, match reports, and announcements from Olodo Hot Stars.
           </p>
+          <Button 
+            onClick={() => setIsSubmitting(true)}
+            className="bg-red-600 hover:bg-red-700 text-white rounded-full px-8 py-6 text-lg font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 mx-auto"
+          >
+            <Plus className="w-5 h-5" /> Submit Your Story
+          </Button>
         </div>
 
         <div className="max-w-xl mx-auto mb-12 relative">
@@ -115,6 +151,55 @@ const NewsPage = () => {
             ))}
           </div>
         )}
+
+        {/* Submission Modal */}
+        <Dialog open={isSubmitting} onOpenChange={setIsSubmitting}>
+          <DialogContent className="sm:max-w-[600px] rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Submit Your Story</DialogTitle>
+              <DialogDescription>
+                Share your Olodo Hot Stars moments with the community. Your post will be reviewed by an admin before being published.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-6 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase">Article Title</label>
+                <Input 
+                  value={formData.title} 
+                  onChange={e => setFormData({...formData, title: e.target.value})} 
+                  placeholder="e.g. Amazing Win at the Local Derby"
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase">Image URL (Optional)</label>
+                <Input 
+                  value={formData.image} 
+                  onChange={e => setFormData({...formData, image: e.target.value})} 
+                  placeholder="https://images.unsplash.com/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase">Content</label>
+                <Textarea 
+                  value={formData.content} 
+                  onChange={e => setFormData({...formData, content: e.target.value})} 
+                  placeholder="Tell your story..."
+                  className="min-h-[150px] rounded-2xl"
+                  required 
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsSubmitting(false)} className="flex-1 rounded-full">
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 rounded-full">
+                  Submit for Approval
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

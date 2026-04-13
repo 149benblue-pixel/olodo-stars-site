@@ -43,6 +43,7 @@ service cloud.firestore {
     //   - content: string (required)
     //   - date: timestamp (required)
     //   - image: string (optional, URL)
+    //   - approved: bool (required)
     //
     // Collection: donations
     // Document ID: auto-generated
@@ -113,7 +114,14 @@ service cloud.firestore {
 
     match /news/{newsId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if 
+        (request.resource.data.title is string && request.resource.data.title.size() > 0) &&
+        (request.resource.data.content is string && request.resource.data.content.size() > 0) &&
+        (
+          (isAdmin() && request.resource.data.approved == true) || 
+          (request.resource.data.approved == false)
+        );
+      allow update, delete: if isAdmin();
     }
 
     match /donations/{donationId} {

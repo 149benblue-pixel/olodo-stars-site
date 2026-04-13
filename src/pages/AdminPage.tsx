@@ -13,7 +13,8 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +46,9 @@ import {
   Settings as SettingsIcon,
   BarChart3,
   Image as ImageIcon,
-  Check
+  Check,
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -299,6 +302,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     number: '',
@@ -327,6 +331,25 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       availability: player.availability !== undefined ? player.availability : true
     });
     setIsAdding(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `players/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData(prev => ({ ...prev, photo: url }));
+      toast.success('Photo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Error uploading photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -425,8 +448,41 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Photo URL</label>
-              <Input value={formData.photo} onChange={e => setFormData({...formData, photo: e.target.value})} placeholder="https://images.unsplash.com/..." />
+              <label className="text-xs font-bold text-gray-500 uppercase">Player Photo</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    id="player-photo-upload"
+                    disabled={uploading}
+                  />
+                  <label 
+                    htmlFor="player-photo-upload"
+                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md cursor-pointer transition-colors border border-gray-200 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {uploading ? 'Uploading...' : 'Upload Photo'}
+                  </label>
+                  {formData.photo && (
+                    <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
+                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+                <Input 
+                  value={formData.photo} 
+                  onChange={e => setFormData({...formData, photo: e.target.value})} 
+                  placeholder="Or paste image URL" 
+                  className="text-[10px] h-7"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals</label>
@@ -512,6 +568,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -528,6 +585,25 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
       contact: official.contact || ''
     });
     setIsAdding(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `officials/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData(prev => ({ ...prev, photo: url }));
+      toast.success('Photo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Error uploading photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -592,8 +668,41 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
               <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Photo URL</label>
-              <Input value={formData.photo} onChange={e => setFormData({...formData, photo: e.target.value})} placeholder="https://images.unsplash.com/..." />
+              <label className="text-xs font-bold text-gray-500 uppercase">Official Photo</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    id="official-photo-upload"
+                    disabled={uploading}
+                  />
+                  <label 
+                    htmlFor="official-photo-upload"
+                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md cursor-pointer transition-colors border border-gray-200 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {uploading ? 'Uploading...' : 'Upload Photo'}
+                  </label>
+                  {formData.photo && (
+                    <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
+                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+                <Input 
+                  value={formData.photo} 
+                  onChange={e => setFormData({...formData, photo: e.target.value})} 
+                  placeholder="Or paste image URL" 
+                  className="text-[10px] h-7"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Contact (Optional)</label>
@@ -903,6 +1012,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -917,6 +1027,25 @@ const NewsManager = ({ news }: { news: any[] }) => {
       image: item.image || ''
     });
     setIsAdding(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `news/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData(prev => ({ ...prev, image: url }));
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Error uploading image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -990,8 +1119,41 @@ const NewsManager = ({ news }: { news: any[] }) => {
               <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Cover Image URL</label>
-              <Input value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} placeholder="https://images.unsplash.com/..." />
+              <label className="text-xs font-bold text-gray-500 uppercase">Cover Image</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    id="news-image-upload"
+                    disabled={uploading}
+                  />
+                  <label 
+                    htmlFor="news-image-upload"
+                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md cursor-pointer transition-colors border border-gray-200 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {uploading ? 'Uploading...' : 'Upload Image'}
+                  </label>
+                  {formData.image && (
+                    <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
+                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+                <Input 
+                  value={formData.image} 
+                  onChange={e => setFormData({...formData, image: e.target.value})} 
+                  placeholder="Or paste image URL" 
+                  className="text-[10px] h-7"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Content</label>
@@ -1045,6 +1207,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     url: '',
     caption: ''
@@ -1057,6 +1220,25 @@ const GalleryManager = ({ items }: { items: any[] }) => {
       caption: item.caption || ''
     });
     setIsAdding(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData(prev => ({ ...prev, url: url }));
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Error uploading image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -1120,13 +1302,41 @@ const GalleryManager = ({ items }: { items: any[] }) => {
         <Card className="border-none shadow-lg bg-white p-6">
           <form onSubmit={handleAdd} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo URL</label>
-              <Input 
-                value={formData.url} 
-                onChange={e => setFormData({...formData, url: e.target.value})} 
-                placeholder="https://images.unsplash.com/..."
-                required
-              />
+              <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    id="gallery-image-upload"
+                    disabled={uploading}
+                  />
+                  <label 
+                    htmlFor="gallery-image-upload"
+                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md cursor-pointer transition-colors border border-gray-200 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {uploading ? 'Uploading...' : 'Upload Image'}
+                  </label>
+                  {formData.url && (
+                    <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
+                      <img src={formData.url} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+                <Input 
+                  value={formData.url} 
+                  onChange={e => setFormData({...formData, url: e.target.value})} 
+                  placeholder="Or paste image URL" 
+                  className="text-[10px] h-7"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>

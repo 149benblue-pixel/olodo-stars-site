@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { db, storage } from '../firebase';
+import { db, storage, uploadFile } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   AlertDialog,
@@ -356,9 +356,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `players/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadFile(file, 'players');
       setFormData(prev => ({ ...prev, photo: url }));
       
       // If we are editing an existing player, update the document immediately
@@ -508,6 +506,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
               </div>
             </div>
             <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Matches Played</label>
+              <Input type="number" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} />
+            </div>
+            <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals</label>
               <Input type="number" value={formData.goals} onChange={e => setFormData({...formData, goals: e.target.value})} />
             </div>
@@ -636,9 +638,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `officials/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadFile(file, 'officials');
       setFormData(prev => ({ ...prev, photo: url }));
       
       // If we are editing an existing official, update the document immediately
@@ -1104,9 +1104,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `news/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadFile(file, 'news');
       setFormData(prev => ({ ...prev, image: url }));
       
       // If we are editing an existing news item, update the document immediately
@@ -1315,9 +1313,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadFile(file, 'gallery');
       setFormData(prev => ({ ...prev, url: url }));
       
       // If we are editing an existing gallery item, update the document immediately
@@ -1498,6 +1494,7 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
     losses: '0',
     goalsScored: '0',
     goalsConceded: '0',
+    cleanSheets: '0',
     totalMatches: '0',
     averageRating: '0.0'
   });
@@ -1519,6 +1516,7 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
         losses: String(stats.losses || 0),
         goalsScored: String(stats.goalsScored || 0),
         goalsConceded: String(stats.goalsConceded || 0),
+        cleanSheets: String(stats.cleanSheets || 0),
         totalMatches: String(stats.totalMatches || 0),
         averageRating: String(stats.averageRating || 0)
       });
@@ -1544,6 +1542,7 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
         losses: Number(formData.losses),
         goalsScored: Number(formData.goalsScored),
         goalsConceded: Number(formData.goalsConceded),
+        cleanSheets: Number(formData.cleanSheets),
         totalMatches: Number(formData.totalMatches),
         averageRating: Number(formData.averageRating)
       });
@@ -1595,6 +1594,10 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals Conceded</label>
               <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
+              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Average Rating</label>

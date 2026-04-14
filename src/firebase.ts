@@ -10,6 +10,43 @@ export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+/**
+ * Uploads a file to Firebase Storage and returns the download URL.
+ * @param file The file to upload.
+ * @param path The path in storage where the file should be saved.
+ * @returns A promise that resolves to the download URL.
+ */
+export const uploadFile = async (file: File, path: string): Promise<string> => {
+  try {
+    if (!storage) {
+      throw new Error('Firebase Storage is not initialized. Please check your configuration.');
+    }
+    
+    // Log attempt
+    console.log(`Attempting to upload ${file.name} (${file.size} bytes) to ${path}`);
+    
+    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(snapshot.ref);
+    
+    console.log('Upload successful, URL:', url);
+    return url;
+  } catch (error: any) {
+    console.error('Error in uploadFile:', error);
+    
+    // Provide more context for common errors
+    if (error.code === 'storage/unauthorized') {
+      throw new Error('Permission denied. Please ensure you are logged in and have the correct permissions.');
+    } else if (error.code === 'storage/quota-exceeded') {
+      throw new Error('Storage quota exceeded. Please try again later.');
+    } else if (error.code === 'storage/retry-limit-exceeded') {
+      throw new Error('Upload timed out. Please check your internet connection.');
+    }
+    
+    throw new Error(error.message || 'An unknown error occurred during upload.');
+  }
+};
+
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);

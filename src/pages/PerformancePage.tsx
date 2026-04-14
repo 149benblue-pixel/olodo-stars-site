@@ -29,6 +29,7 @@ interface TeamStats {
   losses: number;
   goalsScored: number;
   goalsConceded: number;
+  cleanSheets: number;
   averageRating: number;
 }
 
@@ -61,6 +62,7 @@ const PerformancePage = () => {
           losses: 0,
           goalsScored: 0,
           goalsConceded: 0,
+          cleanSheets: 0,
           averageRating: 0
         });
       }
@@ -141,6 +143,17 @@ const PerformancePage = () => {
               <div>
                 <div className="text-sm text-gray-500 font-bold uppercase tracking-widest">Goals Conceded</div>
                 <div className="text-3xl font-black text-gray-900">{stats?.goalsConceded || 0}</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md bg-white">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-yellow-100 rounded-2xl text-yellow-600">
+                <Shield className="w-8 h-8" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 font-bold uppercase tracking-widest">Clean Sheets</div>
+                <div className="text-3xl font-black text-gray-900">{stats?.cleanSheets || 0}</div>
               </div>
             </CardContent>
           </Card>

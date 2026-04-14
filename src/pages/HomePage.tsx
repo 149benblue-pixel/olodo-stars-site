@@ -368,7 +368,7 @@ const HomePage = () => {
                   </div>
                   <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
                     <div className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Clean Sheets</div>
-                    <div className="text-3xl font-black">12</div>
+                    <div className="text-3xl font-black">{stats?.cleanSheets || 0}</div>
                   </div>
                 </div>
               </div>

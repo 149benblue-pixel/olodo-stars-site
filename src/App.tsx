@@ -14,14 +14,18 @@ import {
   Trophy,
   Calendar,
   Info,
+  Twitter,
+  Youtube,
+  Music2,
   Phone,
   Mail,
   MessageCircle,
   Facebook,
   Instagram
 } from 'lucide-react';
-import { auth, signInWithGoogle, logout } from './firebase';
+import { auth, signInWithGoogle, logout, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Toaster } from 'sonner';
 
 // Pages (to be implemented)
@@ -191,7 +195,7 @@ const Navbar = ({ user }: { user: User | null }) => {
   );
 };
 
-const Footer = () => {
+const Footer = ({ social }: { social: any }) => {
   return (
     <footer className="bg-gray-900 text-white pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -206,16 +210,37 @@ const Footer = () => {
             <p className="text-gray-400 max-w-md mb-6">
               Empowering talent, building community, and playing with passion. Olodo Hot Stars is more than just a club; it's a family. #FutaSikuZote
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="p-2 bg-gray-800 rounded-full hover:bg-red-600 transition-colors">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="p-2 bg-gray-800 rounded-full hover:bg-red-600 transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" className="p-2 bg-gray-800 rounded-full hover:bg-red-600 transition-colors">
-                <MessageCircle className="w-5 h-5" />
-              </a>
+            <div className="flex flex-wrap gap-3">
+              {social?.facebook && (
+                <a href={social.facebook} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-blue-600 transition-all hover:-translate-y-1">
+                  <Facebook className="w-5 h-5" />
+                </a>
+              )}
+              {social?.instagram && (
+                <a href={social.instagram} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-pink-600 transition-all hover:-translate-y-1">
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
+              {social?.twitter && (
+                <a href={social.twitter} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-sky-500 transition-all hover:-translate-y-1">
+                  <Twitter className="w-5 h-5" />
+                </a>
+              )}
+              {social?.youtube && (
+                <a href={social.youtube} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-red-600 transition-all hover:-translate-y-1">
+                  <Youtube className="w-5 h-5" />
+                </a>
+              )}
+              {social?.tiktok && (
+                <a href={social.tiktok} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-black hover:ring-1 hover:ring-white transition-all hover:-translate-y-1">
+                  <Music2 className="w-5 h-5" />
+                </a>
+              )}
+              {social?.whatsapp && (
+                <a href={`https://wa.me/${social.whatsapp.replace(/\+/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-gray-800 rounded-xl hover:bg-green-500 transition-all hover:-translate-y-1">
+                  <MessageCircle className="w-5 h-5" />
+                </a>
+              )}
             </div>
           </div>
           
@@ -259,6 +284,7 @@ const Footer = () => {
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -266,7 +292,15 @@ export default function App() {
       setUser(user);
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    const unsubSocial = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {
+      if (d.exists()) setSocialLinks(d.data());
+    });
+
+    return () => {
+      unsubscribe();
+      unsubSocial();
+    };
   }, []);
 
   if (loading) {
@@ -294,7 +328,7 @@ export default function App() {
             </Routes>
           </AnimatePresence>
         </main>
-        <Footer />
+        <Footer social={socialLinks} />
         <Toaster position="top-right" />
       </div>
     </Router>

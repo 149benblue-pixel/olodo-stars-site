@@ -5,10 +5,12 @@ import { Link } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { format } from 'date-fns';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const HomePage = () => {
-  const [nextMatch, setNextMatch] = useState<any>(null);
-  const [lastResult, setLastResult] = useState<any>(null);
+  const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
+  const [pastMatches, setPastMatches] = useState<any[]>([]);
+  const [allPastMatches, setAllPastMatches] = useState<any[]>([]);
   const [latestNews, setLatestNews] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [playerCount, setPlayerCount] = useState(0);
@@ -25,10 +27,11 @@ const HomePage = () => {
       })) as any[];
       
       const upcoming = allMatches.filter(m => m.isUpcoming).sort((a, b) => a.date.getTime() - b.date.getTime());
-      const past = allMatches.filter(m => !m.isUpcoming);
+      const past = allMatches.filter(m => !m.isUpcoming).sort((a, b) => b.date.getTime() - a.date.getTime());
       
-      setNextMatch(upcoming[0] || null);
-      setLastResult(past[0] || null);
+      setUpcomingMatches(upcoming.slice(0, 3));
+      setPastMatches(past.slice(0, 3));
+      setAllPastMatches(past.reverse()); // For chart trend
     });
 
     // Fetch News
@@ -59,6 +62,18 @@ const HomePage = () => {
       unsubPlayers();
     };
   }, []);
+
+  const chartData = React.useMemo(() => {
+    return allPastMatches.map(m => {
+      const scores = m.score?.split('-').map(Number) || [0, 0];
+      return {
+        date: format(m.date, 'MMM dd'),
+        scored: scores[0],
+        conceded: scores[1],
+        opponent: m.opponent
+      };
+    }).slice(-8); // Last 8 matches
+  }, [allPastMatches]);
 
   return (
     <div className="flex flex-col">
@@ -141,80 +156,103 @@ const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Next Match */}
-            <div className="lg:col-span-2 bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-6">
-                <span className="bg-red-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
-                  Next Match
-                </span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Upcoming Fixtures */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-6 h-6 text-red-600" />
+                  Upcoming Fixtures
+                </h3>
               </div>
-              {nextMatch ? (
-                <div className="flex flex-col h-full justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 text-gray-500 mb-6">
-                      <Calendar className="w-5 h-5" />
-                      <span className="font-medium">{format(nextMatch.date, 'EEEE, MMMM dd • HH:mm')}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-8 mb-8">
-                      <div className="text-center flex-1">
-                        <div className="w-20 h-20 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center text-red-600 font-bold text-3xl">O</div>
-                        <div className="font-bold text-xl">Olodo Hot Stars</div>
+              
+              <div className="space-y-4">
+                {upcomingMatches.length > 0 ? upcomingMatches.map((match) => (
+                  <motion.div 
+                    key={match.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    className="bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:border-red-200 transition-all group"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 text-center">
+                        <div className="w-12 h-12 bg-red-100 rounded-full mx-auto mb-2 flex items-center justify-center text-red-600 font-bold text-lg">O</div>
+                        <div className="text-sm font-bold truncate">Olodo Stars</div>
                       </div>
-                      <div className="text-4xl font-black text-gray-300 italic">VS</div>
-                      <div className="text-center flex-1">
-                        <div className="w-20 h-20 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-gray-500 font-bold text-3xl">
-                          {nextMatch.opponent.charAt(0)}
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="text-xs font-black text-gray-300 uppercase italic">VS</div>
+                        <div className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                          {format(match.date, 'MMM dd')}
                         </div>
-                        <div className="font-bold text-xl">{nextMatch.opponent}</div>
+                      </div>
+                      <div className="flex-1 text-center">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center text-gray-500 font-bold text-lg">
+                          {match.opponent.charAt(0)}
+                        </div>
+                        <div className="text-sm font-bold truncate">{match.opponent}</div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                    <div className="text-gray-500">
-                      <span className="font-bold text-gray-900">Venue:</span> {nextMatch.venue || 'TBD'}
+                    <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {match.venue || 'TBD'}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {match.time || format(match.date, 'HH:mm')}
+                      </div>
                     </div>
-                    <button className="px-6 py-2 bg-gray-900 text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors">
-                      Match Details
-                    </button>
+                  </motion.div>
+                )) : (
+                  <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 italic">
+                    No upcoming matches scheduled.
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400 italic">
-                  No upcoming matches scheduled.
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Recent Result */}
-            <div className="bg-red-600 rounded-3xl p-8 text-white shadow-lg shadow-red-200 relative overflow-hidden">
-              <div className="absolute -right-10 -bottom-10 opacity-10">
-                <Trophy className="w-48 h-48" />
+            {/* Recent Results */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Trophy className="w-6 h-6 text-red-600" />
+                  Recent Results
+                </h3>
               </div>
-              <h3 className="text-xl font-bold mb-6">Last Result</h3>
-              {lastResult ? (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium opacity-80">Olodo Hot Stars</span>
-                    <span className="text-3xl font-black">{lastResult.score?.split('-')[0] || '0'}</span>
+
+              <div className="space-y-4">
+                {pastMatches.length > 0 ? pastMatches.map((match) => (
+                  <motion.div 
+                    key={match.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 flex flex-col items-center">
+                        <div className="text-sm font-bold mb-1">Olodo Stars</div>
+                        <div className="text-3xl font-black text-gray-900">{match.score?.split('-')[0] || '0'}</div>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">FT</div>
+                        <div className="h-8 w-[1px] bg-gray-100" />
+                        <div className="text-[10px] font-bold text-gray-500">{format(match.date, 'MMM dd')}</div>
+                      </div>
+                      <div className="flex-1 flex flex-col items-center">
+                        <div className="text-sm font-bold mb-1 truncate w-full text-center">{match.opponent}</div>
+                        <div className="text-3xl font-black text-gray-900">{match.score?.split('-')[1] || '0'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                      <span className="text-[10px] font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                        {match.competition || 'Regional League'}
+                      </span>
+                    </div>
+                  </motion.div>
+                )) : (
+                  <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 italic">
+                    No recent results available.
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium opacity-80">{lastResult.opponent}</span>
-                    <span className="text-3xl font-black">{lastResult.score?.split('-')[1] || '0'}</span>
-                  </div>
-                  <div className="pt-4 border-t border-white/20">
-                    <div className="text-sm font-medium mb-1 opacity-80">Competition</div>
-                    <div className="font-bold">{lastResult.competition || 'Regional League'}</div>
-                  </div>
-                  <Link to="/performance" className="inline-flex items-center gap-2 text-sm font-bold bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-colors">
-                    Match Report <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-red-200 italic">
-                  No recent results.
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -232,6 +270,82 @@ const HomePage = () => {
               </p>
               
               <div className="space-y-8">
+                {/* Performance Graph */}
+                <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="text-sm font-bold uppercase tracking-widest text-gray-400">Goal Trend</div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-red-600" />
+                        <span className="text-[10px] font-bold uppercase text-gray-500">Scored</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-gray-600" />
+                        <span className="text-[10px] font-bold uppercase text-gray-500">Conceded</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-[250px] w-full min-h-[250px]">
+                    {chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%" minHeight={250}>
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorScoredHome" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#6b7280', fontSize: 10 }}
+                            dy={10}
+                          />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#6b7280', fontSize: 10 }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#111827', 
+                              borderRadius: '12px', 
+                              border: '1px solid #374151',
+                              fontSize: '12px'
+                            }}
+                            itemStyle={{ fontWeight: 'bold' }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="scored" 
+                            stroke="#dc2626" 
+                            strokeWidth={3}
+                            fillOpacity={1} 
+                            fill="url(#colorScoredHome)" 
+                            name="Scored"
+                            isAnimationActive={false}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="conceded" 
+                            stroke="#4b5563" 
+                            strokeWidth={2}
+                            fillOpacity={0} 
+                            name="Conceded"
+                            isAnimationActive={false}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500 text-sm italic">
+                        Insufficient data for trend analysis.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <div className="flex justify-between mb-2">
                     <span className="font-bold uppercase tracking-widest text-sm">Win Rate</span>

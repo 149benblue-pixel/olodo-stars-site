@@ -74,6 +74,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
   const [gallery, setGallery] = useState<any[]>([]);
   const [donations, setDonations] = useState<any[]>([]);
   const [teamStats, setTeamStats] = useState<any>(null);
+  const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = user?.email === '149benvolio@gmail.com' || user?.email === '149benblue@gmail.com';
@@ -103,6 +104,9 @@ const AdminPage = ({ user }: AdminPageProps) => {
       if (d.exists()) setTeamStats(d.data());
       setLoading(false);
     });
+    const unsubSocial = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {
+      if (d.exists()) setSocialLinks(d.data());
+    });
 
     return () => {
       unsubPlayers();
@@ -112,6 +116,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
       unsubGallery();
       unsubDonations();
       unsubStats();
+      unsubSocial();
     };
   }, [isAdmin]);
 
@@ -156,30 +161,30 @@ const AdminPage = ({ user }: AdminPageProps) => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white border border-gray-200 p-1 rounded-xl shadow-sm mb-12 flex flex-wrap h-auto">
-            <TabsTrigger value="dashboard" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
+          <TabsList className="bg-white border border-gray-200 p-0.5 rounded-lg shadow-sm mb-8 flex flex-wrap h-auto gap-1">
+            <TabsTrigger value="dashboard" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <LayoutDashboard className="w-3 h-3" /> Dash
             </TabsTrigger>
-            <TabsTrigger value="players" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Users className="w-4 h-4" /> Players
+            <TabsTrigger value="players" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <Users className="w-3 h-3" /> Squad
             </TabsTrigger>
-            <TabsTrigger value="officials" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Shield className="w-4 h-4" /> Officials
+            <TabsTrigger value="officials" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <Shield className="w-3 h-3" /> Staff
             </TabsTrigger>
-            <TabsTrigger value="matches" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Trophy className="w-4 h-4" /> Matches
+            <TabsTrigger value="matches" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <Trophy className="w-3 h-3" /> Games
             </TabsTrigger>
-            <TabsTrigger value="news" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Newspaper className="w-4 h-4" /> News
+            <TabsTrigger value="news" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <Newspaper className="w-3 h-3" /> News
             </TabsTrigger>
-            <TabsTrigger value="gallery" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <ImageIcon className="w-4 h-4" /> Gallery
+            <TabsTrigger value="gallery" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <ImageIcon className="w-3 h-3" /> Media
             </TabsTrigger>
-            <TabsTrigger value="donations" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <Heart className="w-4 h-4" /> Donations
+            <TabsTrigger value="donations" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <Heart className="w-3 h-3" /> Gifts
             </TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-lg px-6 py-2 data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2">
-              <SettingsIcon className="w-4 h-4" /> Settings
+            <TabsTrigger value="settings" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+              <SettingsIcon className="w-3 h-3" /> Setup
             </TabsTrigger>
           </TabsList>
 
@@ -248,7 +253,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="settings">
-            <SettingsManager stats={teamStats} />
+            <SettingsManager stats={teamStats} social={socialLinks} />
           </TabsContent>
         </Tabs>
       </div>
@@ -337,16 +342,34 @@ const PlayerManager = ({ players }: { players: any[] }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG and PNG files are allowed');
+      return;
+    }
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
     setUploading(true);
     try {
       const storageRef = ref(storage, `players/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       setFormData(prev => ({ ...prev, photo: url }));
-      toast.success('Photo uploaded successfully');
-    } catch (error) {
+      
+      // If we are editing an existing player, update the document immediately
+      if (editingId) {
+        await updateDoc(doc(db, 'players', editingId), { photo: url });
+      }
+      
+      toast.success('Photo uploaded successfully ✅');
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast.error('Error uploading photo');
+      toast.error(`Error uploading photo: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -453,7 +476,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                 <div className="flex gap-2">
                   <Input 
                     type="file" 
-                    accept="image/*" 
+                    accept="image/jpeg,image/png" 
                     onChange={handleFileUpload} 
                     className="hidden" 
                     id="player-photo-upload"
@@ -468,7 +491,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {uploading ? 'Uploading...' : 'Upload Photo'}
+                    {uploading ? 'Uploading... ⏳' : 'Upload Photo'}
                   </label>
                   {formData.photo && (
                     <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
@@ -536,7 +559,15 @@ const PlayerManager = ({ players }: { players: any[] }) => {
             {players.map(player => (
               <TableRow key={player.id}>
                 <TableCell className="font-bold text-red-600">{player.number}</TableCell>
-                <TableCell className="font-medium">{player.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 rounded-full border border-gray-100">
+                      <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} className="object-cover" />
+                      <AvatarFallback>{player.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {player.name}
+                  </div>
+                </TableCell>
                 <TableCell>{player.position}</TableCell>
                 <TableCell>{player.matchesPlayed}/{player.goals}/{player.assists}/{player.cleanSheets || 0}</TableCell>
                 <TableCell className="font-bold">{player.rating}</TableCell>
@@ -591,16 +622,34 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG and PNG files are allowed');
+      return;
+    }
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
     setUploading(true);
     try {
       const storageRef = ref(storage, `officials/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       setFormData(prev => ({ ...prev, photo: url }));
-      toast.success('Photo uploaded successfully');
-    } catch (error) {
+      
+      // If we are editing an existing official, update the document immediately
+      if (editingId) {
+        await updateDoc(doc(db, 'officials', editingId), { photo: url });
+      }
+      
+      toast.success('Photo uploaded successfully ✅');
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast.error('Error uploading photo');
+      toast.error(`Error uploading photo: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -673,7 +722,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
                 <div className="flex gap-2">
                   <Input 
                     type="file" 
-                    accept="image/*" 
+                    accept="image/jpeg,image/png" 
                     onChange={handleFileUpload} 
                     className="hidden" 
                     id="official-photo-upload"
@@ -688,7 +737,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {uploading ? 'Uploading...' : 'Upload Photo'}
+                    {uploading ? 'Uploading... ⏳' : 'Upload Photo'}
                   </label>
                   {formData.photo && (
                     <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
@@ -730,7 +779,15 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
           <TableBody>
             {officials.map(official => (
               <TableRow key={official.id}>
-                <TableCell className="font-medium">{official.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 rounded-full border border-gray-100">
+                      <AvatarImage src={official.photo || OFFICIAL_PLACEHOLDER} className="object-cover" />
+                      <AvatarFallback>{official.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {official.name}
+                  </div>
+                </TableCell>
                 <TableCell>{official.role}</TableCell>
                 <TableCell>{official.contact || 'N/A'}</TableCell>
                 <TableCell className="text-right">
@@ -1033,16 +1090,34 @@ const NewsManager = ({ news }: { news: any[] }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG and PNG files are allowed');
+      return;
+    }
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
     setUploading(true);
     try {
       const storageRef = ref(storage, `news/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       setFormData(prev => ({ ...prev, image: url }));
-      toast.success('Image uploaded successfully');
-    } catch (error) {
+      
+      // If we are editing an existing news item, update the document immediately
+      if (editingId) {
+        await updateDoc(doc(db, 'news', editingId), { image: url });
+      }
+      
+      toast.success('Image uploaded successfully ✅');
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast.error('Error uploading image');
+      toast.error(`Error uploading image: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -1124,7 +1199,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
                 <div className="flex gap-2">
                   <Input 
                     type="file" 
-                    accept="image/*" 
+                    accept="image/jpeg,image/png" 
                     onChange={handleFileUpload} 
                     className="hidden" 
                     id="news-image-upload"
@@ -1139,7 +1214,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {uploading ? 'Uploading...' : 'Upload Image'}
+                    {uploading ? 'Uploading... ⏳' : 'Upload Image'}
                   </label>
                   {formData.image && (
                     <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
@@ -1226,16 +1301,34 @@ const GalleryManager = ({ items }: { items: any[] }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG and PNG files are allowed');
+      return;
+    }
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
     setUploading(true);
     try {
       const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       setFormData(prev => ({ ...prev, url: url }));
-      toast.success('Image uploaded successfully');
-    } catch (error) {
+      
+      // If we are editing an existing gallery item, update the document immediately
+      if (editingId) {
+        await updateDoc(doc(db, 'gallery', editingId), { url: url });
+      }
+      
+      toast.success('Image uploaded successfully ✅');
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast.error('Error uploading image');
+      toast.error(`Error uploading image: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -1307,7 +1400,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
                 <div className="flex gap-2">
                   <Input 
                     type="file" 
-                    accept="image/*" 
+                    accept="image/jpeg,image/png" 
                     onChange={handleFileUpload} 
                     className="hidden" 
                     id="gallery-image-upload"
@@ -1322,7 +1415,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {uploading ? 'Uploading...' : 'Upload Image'}
+                    {uploading ? 'Uploading... ⏳' : 'Upload Image'}
                   </label>
                   {formData.url && (
                     <div className="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
@@ -1398,7 +1491,7 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
   );
 };
 
-const SettingsManager = ({ stats }: { stats: any }) => {
+const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
   const [formData, setFormData] = useState({
     wins: '0',
     draws: '0',
@@ -1407,6 +1500,15 @@ const SettingsManager = ({ stats }: { stats: any }) => {
     goalsConceded: '0',
     totalMatches: '0',
     averageRating: '0.0'
+  });
+
+  const [socialData, setSocialData] = useState({
+    facebook: '',
+    instagram: '',
+    twitter: '',
+    whatsapp: '',
+    youtube: '',
+    tiktok: ''
   });
 
   useEffect(() => {
@@ -1421,9 +1523,19 @@ const SettingsManager = ({ stats }: { stats: any }) => {
         averageRating: String(stats.averageRating || 0)
       });
     }
-  }, [stats]);
+    if (social) {
+      setSocialData({
+        facebook: social.facebook || '',
+        instagram: social.instagram || '',
+        twitter: social.twitter || '',
+        whatsapp: social.whatsapp || '',
+        youtube: social.youtube || '',
+        tiktok: social.tiktok || ''
+      });
+    }
+  }, [stats, social]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSaveStats = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await setDoc(doc(db, 'settings', 'teamStats'), {
@@ -1441,46 +1553,101 @@ const SettingsManager = ({ stats }: { stats: any }) => {
     }
   };
 
+  const handleSaveSocial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await setDoc(doc(db, 'settings', 'socialLinks'), socialData);
+      toast.success('Social links updated');
+    } catch (error) {
+      toast.error('Error updating social links');
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-900">Team Statistics</h2>
-      <Card className="border-none shadow-lg bg-white p-8">
-        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Total Matches</label>
-            <Input type="number" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Wins</label>
-            <Input type="number" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Draws</label>
-            <Input type="number" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Losses</label>
-            <Input type="number" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Goals Scored</label>
-            <Input type="number" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Goals Conceded</label>
-            <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Average Rating</label>
-            <Input type="number" step="0.1" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} />
-          </div>
-          <div className="md:col-span-2 lg:col-span-4 pt-4">
-            <Button type="submit" className="w-full bg-gray-900 hover:bg-black text-white h-14 rounded-xl font-bold">
-              Update Team Stats <Save className="ml-2 w-5 h-5" />
-            </Button>
-          </div>
-        </form>
-      </Card>
+    <div className="space-y-12">
+      <section className="space-y-8">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-red-600" />
+          Team Statistics
+        </h2>
+        <Card className="border-none shadow-lg bg-white p-8">
+          <form onSubmit={handleSaveStats} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Total Matches</label>
+              <Input type="number" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Wins</label>
+              <Input type="number" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Draws</label>
+              <Input type="number" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Losses</label>
+              <Input type="number" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Goals Scored</label>
+              <Input type="number" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Goals Conceded</label>
+              <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Average Rating</label>
+              <Input type="number" step="0.1" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} />
+            </div>
+            <div className="md:col-span-2 lg:col-span-4 pt-4">
+              <Button type="submit" className="w-full bg-gray-900 hover:bg-black text-white h-14 rounded-xl font-bold">
+                Update Team Stats <Save className="ml-2 w-5 h-5" />
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </section>
+
+      <section className="space-y-8">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Heart className="w-6 h-6 text-red-600" />
+          Social Media Links
+        </h2>
+        <Card className="border-none shadow-lg bg-white p-8">
+          <form onSubmit={handleSaveSocial} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Facebook URL</label>
+              <Input value={socialData.facebook} onChange={e => setSocialData({...socialData, facebook: e.target.value})} placeholder="https://facebook.com/..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Instagram URL</label>
+              <Input value={socialData.instagram} onChange={e => setSocialData({...socialData, instagram: e.target.value})} placeholder="https://instagram.com/..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Twitter / X URL</label>
+              <Input value={socialData.twitter} onChange={e => setSocialData({...socialData, twitter: e.target.value})} placeholder="https://twitter.com/..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">WhatsApp Number</label>
+              <Input value={socialData.whatsapp} onChange={e => setSocialData({...socialData, whatsapp: e.target.value})} placeholder="+254..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">YouTube Channel</label>
+              <Input value={socialData.youtube} onChange={e => setSocialData({...socialData, youtube: e.target.value})} placeholder="https://youtube.com/..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">TikTok URL</label>
+              <Input value={socialData.tiktok} onChange={e => setSocialData({...socialData, tiktok: e.target.value})} placeholder="https://tiktok.com/@..." />
+            </div>
+            <div className="md:col-span-2 lg:col-span-3 pt-4">
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-14 rounded-xl font-bold">
+                Update Social Links <Save className="ml-2 w-5 h-5" />
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </section>
     </div>
   );
 };

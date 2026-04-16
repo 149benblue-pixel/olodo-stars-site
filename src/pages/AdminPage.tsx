@@ -48,7 +48,8 @@ import {
   Image as ImageIcon,
   Check,
   Upload,
-  Loader2
+  Loader2,
+  Mail
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1505,7 +1506,10 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
     twitter: '',
     whatsapp: '',
     youtube: '',
-    tiktok: ''
+    tiktok: '',
+    email: '',
+    phone: '',
+    address: ''
   });
 
   useEffect(() => {
@@ -1528,7 +1532,10 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
         twitter: social.twitter || '',
         whatsapp: social.whatsapp || '',
         youtube: social.youtube || '',
-        tiktok: social.tiktok || ''
+        tiktok: social.tiktok || '',
+        email: social.email || '149benvolio@gmail.com',
+        phone: social.phone || '+254 723 134611',
+        address: social.address || 'Olodo, Kenya'
       });
     }
   }, [stats, social]);
@@ -1643,9 +1650,32 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
               <label className="text-xs font-bold text-gray-500 uppercase">TikTok URL</label>
               <Input value={socialData.tiktok} onChange={e => setSocialData({...socialData, tiktok: e.target.value})} placeholder="https://tiktok.com/@..." />
             </div>
+          </form>
+        </Card>
+      </section>
+
+      <section className="space-y-8">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Mail className="w-6 h-6 text-red-600" />
+          Primary Contact Information
+        </h2>
+        <Card className="border-none shadow-lg bg-white p-8">
+          <form onSubmit={handleSaveSocial} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Contact Email</label>
+              <Input value={socialData.email} onChange={e => setSocialData({...socialData, email: e.target.value})} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Contact Phone</label>
+              <Input value={socialData.phone} onChange={e => setSocialData({...socialData, phone: e.target.value})} placeholder="+254..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Office Address / Location</label>
+              <Input value={socialData.address} onChange={e => setSocialData({...socialData, address: e.target.value})} placeholder="Olodo, Kenya" />
+            </div>
             <div className="md:col-span-2 lg:col-span-3 pt-4">
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-14 rounded-xl font-bold">
-                Update Social Links <Save className="ml-2 w-5 h-5" />
+              <Button type="submit" className="w-full bg-slate-900 hover:bg-black text-white h-14 rounded-xl font-bold">
+                Update Contact Information <Save className="ml-2 w-5 h-5" />
               </Button>
             </div>
           </form>

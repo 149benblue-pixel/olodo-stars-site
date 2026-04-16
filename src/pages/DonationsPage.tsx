@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { toast } from 'sonner';
 
@@ -15,6 +15,16 @@ const DonationsPage = () => {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [donationPhone, setDonationPhone] = useState('+254 716 773 610');
+
+  React.useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {
+      if (d.exists() && d.data().whatsapp) {
+        setDonationPhone(d.data().whatsapp);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,12 +67,12 @@ const DonationsPage = () => {
             Your contribution of <span className="font-bold text-gray-900">KES {amount}</span> has been recorded. 
             <br /><br />
             Please complete your donation by sending to:
-            <span className="block text-2xl font-black text-red-600 mt-2">+254 716 773 610</span>
+            <span className="block text-2xl font-black text-red-600 mt-2">{donationPhone}</span>
           </p>
           <div className="flex flex-col gap-3">
             <Button 
               onClick={() => {
-                navigator.clipboard.writeText('+254716773610');
+                navigator.clipboard.writeText(donationPhone.replace(/\s+/g, ''));
                 toast.success('Number copied to clipboard!');
               }}
               variant="outline"
@@ -175,7 +185,7 @@ const DonationsPage = () => {
                   Support Olodo Hot Stars by sending your donation to:
                 </p>
                 <div className="text-3xl md:text-4xl font-black text-red-600 mb-4 tracking-tight">
-                  +254 716 773 610
+                  {donationPhone}
                 </div>
                 <p className="text-gray-500 italic">
                   Thank you for your support!
@@ -186,13 +196,13 @@ const DonationsPage = () => {
                 <Button 
                   variant="outline" 
                   className="h-14 rounded-2xl border-gray-200 font-bold text-gray-700 hover:bg-gray-50"
-                  onClick={() => window.location.href = 'tel:+254716773610'}
+                  onClick={() => window.location.href = `tel:${donationPhone.replace(/\s+/g, '')}`}
                 >
                   <Phone className="w-5 h-5 mr-2" /> Call to Donate
                 </Button>
                 <Button 
                   className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 font-bold"
-                  onClick={() => window.open('https://wa.me/254716773610?text=I%20would%20like%20to%20support%20Olodo%20Hot%20Stars', '_blank')}
+                  onClick={() => window.open(`https://wa.me/${donationPhone.replace(/\s+/g, '').replace('+', '')}?text=I%20would%20like%20to%20support%20Olodo%20Hot%20Stars`, '_blank')}
                 >
                   <MessageCircle className="w-5 h-5 mr-2" /> WhatsApp
                 </Button>

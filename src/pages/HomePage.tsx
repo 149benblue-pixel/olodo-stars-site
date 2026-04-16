@@ -95,22 +95,22 @@ const HomePage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight">
-              OLODO <span className="text-red-600">HOT STARS</span>
+            <h1 className="text-6xl md:text-8xl font-black text-white mb-6 tracking-tighter leading-none">
+              OLODO <span className="text-red-600 drop-shadow-[0_0_30px_rgba(220,38,38,0.5)]">HOT STARS</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-2xl mx-auto font-light">
-              More than a club. A community. A passion. <span className="font-bold text-red-500">#FutaSikuZote</span>
+            <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
+              More than a club. A community. A passion. <span className="text-white font-black border-b-2 border-red-600 pb-1">#FutaSikuZote</span>
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <Link 
                 to="/team" 
-                className="w-full sm:w-auto px-8 py-4 bg-red-600 text-white rounded-full font-bold text-lg hover:bg-red-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-10 py-5 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-700 transition-all transform hover:scale-105 flex items-center justify-center gap-3 shadow-2xl shadow-red-600/40"
               >
                 Meet the Team <Users className="w-5 h-5" />
               </Link>
               <Link 
                 to="/donate" 
-                className="w-full sm:w-auto px-8 py-4 bg-white text-gray-900 rounded-full font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all transform hover:scale-105 flex items-center justify-center gap-3 shadow-2xl shadow-white/10"
               >
                 Support Us <Heart className="w-5 h-5 text-red-600" />
               </Link>
@@ -119,23 +119,23 @@ const HomePage = () => {
         </div>
 
         {/* Floating Stats */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-white/5 backdrop-blur-sm border-t border-white/10 py-8 hidden md:block">
-          <div className="max-w-7xl mx-auto px-4 grid grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white">{playerCount}</div>
-              <div className="text-sm text-gray-400 uppercase tracking-widest">Active Players</div>
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-slate-900/40 backdrop-blur-xl border-t border-white/10 py-10 hidden md:block">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-4 gap-12">
+            <div className="text-center group">
+              <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{playerCount}</div>
+              <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Active Players</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white">{stats?.wins || 0}</div>
-              <div className="text-sm text-gray-400 uppercase tracking-widest">Wins this Season</div>
+            <div className="text-center group">
+              <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.wins || 0}</div>
+              <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Season Victories</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white">{stats?.averageRating || '0.0'}</div>
-              <div className="text-sm text-gray-400 uppercase tracking-widest">Team Rating</div>
+            <div className="text-center group">
+              <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.averageRating || '0.0'}</div>
+              <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Team Rating</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white">{stats?.goalsScored || 0}</div>
-              <div className="text-sm text-gray-400 uppercase tracking-widest">Goals Scored</div>
+            <div className="text-center group">
+              <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.goalsScored || 0}</div>
+              <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Goals Scored</div>
             </div>
           </div>
         </div>

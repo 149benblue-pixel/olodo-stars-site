@@ -357,23 +357,23 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="players">
-            <PlayerManager players={players} />
+            <PlayerManager players={players} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="officials">
-            <OfficialManager officials={officials} />
+            <OfficialManager officials={officials} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="matches">
-            <MatchManager matches={matches} />
+            <MatchManager matches={matches} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="news">
-            <NewsManager news={news} />
+            <NewsManager news={news} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="gallery">
-            <GalleryManager items={gallery} />
+            <GalleryManager items={gallery} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="donations">
@@ -381,7 +381,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="supabase-media">
-            <SupabaseMediaManager items={supabaseMedia} onRefresh={() => {
+            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} onRefresh={() => {
               // Trigger a re-fetch manually if needed
               if (supabase) {
                 supabase.from('club_media').select('*').order('created_at', { ascending: false }).then(({ data }) => {
@@ -392,7 +392,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="settings">
-            <SettingsManager stats={teamStats} social={socialLinks} />
+            <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="database">
@@ -446,7 +446,7 @@ const DeleteConfirmDialog = ({
   );
 };
 
-const PlayerManager = ({ players }: { players: any[] }) => {
+const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -466,6 +466,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   });
 
   const handleEdit = (player: any) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setEditingId(player.id);
     setFormData({
       name: player.name,
@@ -483,6 +487,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -522,6 +530,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       const data = {
         ...formData,
@@ -561,7 +573,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !isVerified) return;
     try {
       await deleteDoc(doc(db, 'players', deleteId));
       toast.success('Player deleted');
@@ -584,6 +596,10 @@ const PlayerManager = ({ players }: { players: any[] }) => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Squad</h2>
         <Button onClick={() => {
+          if (!isVerified) {
+            toast.error('Email verification required');
+            return;
+          }
           setIsAdding(!isAdding);
           if (isAdding) setEditingId(null);
         }} className="bg-red-600 hover:bg-red-700 rounded-full">
@@ -591,6 +607,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
           {isAdding ? 'Cancel' : 'Add Player'}
         </Button>
       </div>
+
 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
@@ -763,7 +780,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
   );
 };
 
-const OfficialManager = ({ officials }: { officials: any[] }) => {
+const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -777,6 +794,10 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   });
 
   const handleEdit = (official: any) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setEditingId(official.id);
     setFormData({
       name: official.name,
@@ -788,6 +809,10 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -827,6 +852,10 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       if (editingId) {
         await updateDoc(doc(db, 'officials', editingId), formData);
@@ -844,7 +873,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !isVerified) return;
     try {
       await deleteDoc(doc(db, 'officials', deleteId));
       toast.success('Official deleted');
@@ -867,6 +896,10 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Officials</h2>
         <Button onClick={() => {
+          if (!isVerified) {
+            toast.error('Email verification required');
+            return;
+          }
           setIsAdding(!isAdding);
           if (isAdding) setEditingId(null);
         }} className="bg-red-600 hover:bg-red-700 rounded-full">
@@ -874,6 +907,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
           {isAdding ? 'Cancel' : 'Add Official'}
         </Button>
       </div>
+
 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
@@ -986,7 +1020,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   );
 };
 
-const MatchManager = ({ matches }: { matches: any[] }) => {
+const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1002,6 +1036,10 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
   });
 
   const handleEdit = (match: any) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setEditingId(match.id);
     setFormData({
       opponent: match.opponent,
@@ -1017,12 +1055,20 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
   };
 
   const handleAddNext = () => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setFormData({ ...formData, isUpcoming: true, score: '', videoUrl: '' });
     setEditingId(null);
     setIsAdding(true);
   };
 
   const handleAddPrevious = () => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setFormData({ ...formData, isUpcoming: false, venue: '', time: '' });
     setEditingId(null);
     setIsAdding(true);
@@ -1030,6 +1076,10 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       const data = {
         ...formData,
@@ -1053,7 +1103,7 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !isVerified) return;
     try {
       await deleteDoc(doc(db, 'matches', deleteId));
       toast.success('Match deleted');
@@ -1092,6 +1142,7 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
           )}
         </div>
       </div>
+
 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
@@ -1242,7 +1293,7 @@ const MatchManager = ({ matches }: { matches: any[] }) => {
   );
 };
 
-const NewsManager = ({ news }: { news: any[] }) => {
+const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1255,6 +1306,10 @@ const NewsManager = ({ news }: { news: any[] }) => {
   });
 
   const handleEdit = (item: any) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setEditingId(item.id);
     setFormData({
       title: item.title,
@@ -1265,6 +1320,10 @@ const NewsManager = ({ news }: { news: any[] }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1304,6 +1363,10 @@ const NewsManager = ({ news }: { news: any[] }) => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       if (editingId) {
         await updateDoc(doc(db, 'news', editingId), formData);
@@ -1325,6 +1388,10 @@ const NewsManager = ({ news }: { news: any[] }) => {
   };
 
   const handleApprove = async (id: string) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       await updateDoc(doc(db, 'news', id), { approved: true });
       toast.success('Article approved and published');
@@ -1334,7 +1401,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !isVerified) return;
     try {
       await deleteDoc(doc(db, 'news', deleteId));
       toast.success('Article deleted');
@@ -1357,6 +1424,10 @@ const NewsManager = ({ news }: { news: any[] }) => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage News</h2>
         <Button onClick={() => {
+          if (!isVerified) {
+            toast.error('Email verification required');
+            return;
+          }
           setIsAdding(!isAdding);
           if (isAdding) setEditingId(null);
         }} className="bg-red-600 hover:bg-red-700 rounded-full">
@@ -1364,6 +1435,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
           {isAdding ? 'Cancel' : 'Post News'}
         </Button>
       </div>
+
 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
@@ -1464,7 +1536,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
   );
 };
 
-const GalleryManager = ({ items }: { items: any[] }) => {
+const GalleryManager = ({ items, isVerified }: { items: any[], isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1476,6 +1548,10 @@ const GalleryManager = ({ items }: { items: any[] }) => {
   });
 
   const handleEdit = (item: any) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     setEditingId(item.id);
     setFormData({
       url: item.url,
@@ -1485,6 +1561,10 @@ const GalleryManager = ({ items }: { items: any[] }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1524,6 +1604,10 @@ const GalleryManager = ({ items }: { items: any[] }) => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     if (!formData.url) {
       toast.error('Please provide an image URL');
       return;
@@ -1548,7 +1632,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !isVerified) return;
     try {
       await deleteDoc(doc(db, 'gallery', deleteId));
       toast.success('Image deleted');
@@ -1571,6 +1655,10 @@ const GalleryManager = ({ items }: { items: any[] }) => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Gallery</h2>
         <Button onClick={() => {
+          if (!isVerified) {
+            toast.error('Email verification required');
+            return;
+          }
           setIsAdding(!isAdding);
           if (isAdding) setEditingId(null);
         }} className="bg-red-600 hover:bg-red-700 rounded-full">
@@ -1578,6 +1666,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
           {isAdding ? 'Cancel' : 'Add Photo'}
         </Button>
       </div>
+
 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
@@ -1686,7 +1775,7 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
   );
 };
 
-const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
+const SettingsManager = ({ stats, social, isVerified }: { stats: any, social: any, isVerified: boolean }) => {
   const [formData, setFormData] = useState({
     wins: '0',
     draws: '0',
@@ -1740,6 +1829,10 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
 
   const handleSaveStats = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       await setDoc(doc(db, 'settings', 'teamStats'), {
         wins: Number(formData.wins),
@@ -1759,6 +1852,10 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
 
   const handleSaveSocial = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       await setDoc(doc(db, 'settings', 'socialLinks'), socialData);
       toast.success('Social links updated');
@@ -1888,7 +1985,7 @@ const SettingsManager = ({ stats, social }: { stats: any, social: any }) => {
   );
 };
 
-const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: () => void }) => {
+const SupabaseMediaManager = ({ items, onRefresh, isVerified }: { items: any[], onRefresh: () => void, isVerified: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1898,6 +1995,10 @@ const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: (
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1923,6 +2024,10 @@ const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: (
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     if (!formData.url) {
       toast.error('Please upload an image first');
       return;
@@ -1949,6 +2054,10 @@ const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: (
   };
 
   const handleDelete = async (id: string) => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return;
+    }
     try {
       const { error } = await supabase!
         .from('club_media')

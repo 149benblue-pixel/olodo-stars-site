@@ -28,15 +28,17 @@ const DonationsPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || isNaN(Number(amount))) {
-      toast.error('Please enter a valid amount');
+    const donationAmount = Number(amount);
+    
+    if (!amount || isNaN(donationAmount) || donationAmount <= 0) {
+      toast.error('Please enter a valid amount greater than zero');
       return;
     }
 
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'donations'), {
-        amount: Number(amount),
+        amount: donationAmount,
         donorName: name || 'Anonymous',
         message: message,
         date: serverTimestamp()
@@ -124,6 +126,7 @@ const DonationsPage = () => {
                     <label className="text-sm font-bold text-gray-700 uppercase tracking-widest">Amount (KES)</label>
                     <Input 
                       type="number" 
+                      min="1"
                       placeholder="Enter amount" 
                       className="h-14 text-lg font-bold border-gray-200 focus:ring-red-600"
                       value={amount}

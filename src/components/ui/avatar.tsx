@@ -31,6 +31,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
         "aspect-square size-full rounded-full object-cover",
         className
       )}
+      referrerPolicy="no-referrer"
       {...props}
     />
   )

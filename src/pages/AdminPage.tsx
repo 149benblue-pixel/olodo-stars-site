@@ -640,7 +640,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                   </label>
                   {formData.photo && (
                     <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 animate-in zoom-in-50 duration-300">
-                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <button 
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, photo: '' }))}
@@ -730,7 +730,7 @@ const PlayerManager = ({ players }: { players: any[] }) => {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8 rounded-full border border-gray-100">
-                      <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} className="object-cover" />
+                      <AvatarImage src={player.photo || PLAYER_PLACEHOLDER} className="object-cover" referrerPolicy="no-referrer" />
                       <AvatarFallback>{player.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     {player.name}
@@ -768,6 +768,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -910,7 +911,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
                   </label>
                   {formData.photo && (
                     <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <button 
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, photo: '' }))}
@@ -958,7 +959,7 @@ const OfficialManager = ({ officials }: { officials: any[] }) => {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8 rounded-full border border-gray-100">
-                      <AvatarImage src={official.photo || OFFICIAL_PLACEHOLDER} className="object-cover" />
+                      <AvatarImage src={official.photo || OFFICIAL_PLACEHOLDER} className="object-cover" referrerPolicy="no-referrer" />
                       <AvatarFallback>{official.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     {official.name}
@@ -1396,7 +1397,7 @@ const NewsManager = ({ news }: { news: any[] }) => {
                   </label>
                   {formData.image && (
                     <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <button 
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
@@ -1606,7 +1607,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
                   </label>
                   {formData.url && (
                     <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.url} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={formData.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <button 
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, url: '' }))}
@@ -1639,7 +1640,7 @@ const GalleryManager = ({ items }: { items: any[] }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {items.map(item => (
           <div key={item.id} className="relative group aspect-square rounded-xl overflow-hidden shadow-sm">
-            <img src={item.url} alt={item.caption} className="w-full h-full object-cover" />
+            <img src={item.url} alt={item.caption} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-white hover:text-blue-400">
                 <Edit className="w-5 h-5" />
@@ -2012,7 +2013,7 @@ const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: (
                     </label>
                     {formData.url && (
                       <div className="relative group w-32 h-32 rounded-2xl overflow-hidden shadow-lg border-2 border-white">
-                        <img src={formData.url} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={formData.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Check className="w-8 h-8 text-white" />
                         </div>
@@ -2060,7 +2061,7 @@ const SupabaseMediaManager = ({ items, onRefresh }: { items: any[], onRefresh: (
         {items.map(item => (
           <Card key={item.id} className="group relative bg-white border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden">
             <div className="aspect-[4/3] relative overflow-hidden">
-              <img src={item.url} alt={item.description} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <img src={item.url} alt={item.description} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
                 <p className="text-white text-sm font-medium line-clamp-2 mb-2">{item.description}</p>
                 <div className="flex items-center justify-between">

@@ -163,7 +163,7 @@ const Navbar = ({ user }: { user: User | null }) => {
             {user ? (
               <div className="flex items-center gap-3 ml-4 pl-4 border-l border-slate-200">
                 <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-sm">
-                  <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt="" className="w-full h-full object-cover" />
+                  <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <button
                   onClick={() => logout()}

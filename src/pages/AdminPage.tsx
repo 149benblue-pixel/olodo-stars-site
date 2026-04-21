@@ -66,6 +66,7 @@ import { format } from 'date-fns';
 
 interface AdminPageProps {
   user: User | null;
+  role: 'super_admin' | 'editor' | null;
 }
 
 const DatabaseStatus = () => {
@@ -162,7 +163,7 @@ const DatabaseStatus = () => {
   );
 };
 
-const AdminPage = ({ user }: AdminPageProps) => {
+const AdminPage = ({ user, role }: AdminPageProps) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [players, setPlayers] = useState<any[]>([]);
   const [officials, setOfficials] = useState<any[]>([]);
@@ -175,11 +176,12 @@ const AdminPage = ({ user }: AdminPageProps) => {
   const [supabaseMedia, setSupabaseMedia] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = user?.email === '149benblue@gmail.com';
+  const isSuperAdmin = role === 'super_admin' || user?.email === '149benblue@gmail.com';
+  const isEditor = role === 'editor' || isSuperAdmin;
   const isVerified = user?.emailVerified;
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isEditor) return;
 
     const unsubPlayers = onSnapshot(query(collection(db, 'players'), orderBy('number', 'asc')), (s) => {
       setPlayers(s.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -234,9 +236,9 @@ const AdminPage = ({ user }: AdminPageProps) => {
       unsubStats();
       unsubSocial();
     };
-  }, [isAdmin]);
+  }, [isEditor]);
 
-  if (!isAdmin) {
+  if (!isEditor) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-12 text-center shadow-xl">
@@ -245,7 +247,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Access Denied</h2>
           <p className="text-gray-600 mb-8">
-            You do not have permission to access the admin panel. Please login with an administrator account.
+            You do not have permission to access the admin panel. If you are an official, please contact the main administrator.
           </p>
           <Button onClick={() => window.location.href = '/'} className="w-full bg-red-600 hover:bg-red-700 rounded-full">
             Back to Home
@@ -264,7 +266,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
               Admin <span className="text-red-600">Panel</span>
             </h1>
             <p className="text-gray-600">Manage your club's content and performance data.</p>
-            {isAdmin && !isVerified && (
+            {isEditor && !isVerified && (
               <div className="mt-4 flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100 animate-pulse">
                 <Shield className="w-4 h-4" />
                 <span className="text-xs font-bold">Please verify your email to enable database writes.</span>
@@ -308,6 +310,11 @@ const AdminPage = ({ user }: AdminPageProps) => {
             <TabsTrigger value="supabase-media" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
               <Zap className="w-3 h-3" /> Supa Media
             </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="roles" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+                <Shield className="w-3 h-3" /> Access
+              </TabsTrigger>
+            )}
             <TabsTrigger value="settings" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
               <SettingsIcon className="w-3 h-3" /> Setup
             </TabsTrigger>
@@ -357,31 +364,37 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="players">
-            <PlayerManager players={players} isVerified={isVerified || false} />
+            <PlayerManager players={players} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="officials">
-            <OfficialManager officials={officials} isVerified={isVerified || false} />
+            <OfficialManager officials={officials} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="matches">
-            <MatchManager matches={matches} isVerified={isVerified || false} />
+            <MatchManager matches={matches} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="news">
-            <NewsManager news={news} isVerified={isVerified || false} />
+            <NewsManager news={news} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="gallery">
-            <GalleryManager items={gallery} isVerified={isVerified || false} />
+            <GalleryManager items={gallery} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="donations">
             <DonationManager donations={donations} />
           </TabsContent>
 
+          {isSuperAdmin && (
+            <TabsContent value="roles">
+              <RoleManager currentUserId={user?.uid || ''} />
+            </TabsContent>
+          )}
+
           <TabsContent value="supabase-media">
-            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} onRefresh={() => {
+            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} onRefresh={() => {
               // Trigger a re-fetch manually if needed
               if (supabase) {
                 supabase.from('club_media').select('*').order('created_at', { ascending: false }).then(({ data }) => {
@@ -392,7 +405,7 @@ const AdminPage = ({ user }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="settings">
-            <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} />
+            <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="database">
@@ -446,7 +459,7 @@ const DeleteConfirmDialog = ({
   );
 };
 
-const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: boolean }) => {
+const PlayerManager = ({ players, isVerified, isSuperAdmin }: { players: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -595,17 +608,19 @@ const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: bo
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Squad</h2>
-        <Button onClick={() => {
-          if (!isVerified) {
-            toast.error('Email verification required');
-            return;
-          }
-          setIsAdding(!isAdding);
-          if (isAdding) setEditingId(null);
-        }} className="bg-red-600 hover:bg-red-700 rounded-full">
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'Add Player'}
-        </Button>
+        {isSuperAdmin && (
+          <Button onClick={() => {
+            if (!isVerified) {
+              toast.error('Email verification required');
+              return;
+            }
+            setIsAdding(!isAdding);
+            if (isAdding) setEditingId(null);
+          }} className="bg-red-600 hover:bg-red-700 rounded-full">
+            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isAdding ? 'Cancel' : 'Add Player'}
+          </Button>
+        )}
       </div>
 
 
@@ -618,11 +633,11 @@ const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: bo
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Jersey Number</label>
-              <Input type="number" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} required />
+              <Input type="number" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Position</label>
-              <Select value={formData.position} onValueChange={v => setFormData({...formData, position: v})}>
+              <Select value={formData.position} onValueChange={v => setFormData({...formData, position: v})} disabled={!isSuperAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Goalkeeper">Goalkeeper</SelectItem>
@@ -683,27 +698,27 @@ const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: bo
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Matches Played</label>
-              <Input type="number" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} />
+              <Input type="number" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals</label>
-              <Input type="number" value={formData.goals} onChange={e => setFormData({...formData, goals: e.target.value})} />
+              <Input type="number" value={formData.goals} onChange={e => setFormData({...formData, goals: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Assists</label>
-              <Input type="number" value={formData.assists} onChange={e => setFormData({...formData, assists: e.target.value})} />
+              <Input type="number" value={formData.assists} onChange={e => setFormData({...formData, assists: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
-              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} />
+              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Rating</label>
-              <Input type="number" step="0.1" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} />
+              <Input type="number" step="0.1" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Availability</label>
-              <Select value={formData.availability ? 'true' : 'false'} onValueChange={v => setFormData({...formData, availability: v === 'true'})}>
+              <Select value={formData.availability ? 'true' : 'false'} onValueChange={v => setFormData({...formData, availability: v === 'true'})} disabled={!isSuperAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">Available</SelectItem>
@@ -766,9 +781,11 @@ const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: bo
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(player)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(player.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {isSuperAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(player.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -780,7 +797,7 @@ const PlayerManager = ({ players, isVerified }: { players: any[], isVerified: bo
   );
 };
 
-const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerified: boolean }) => {
+const OfficialManager = ({ officials, isVerified, isSuperAdmin }: { officials: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -918,7 +935,7 @@ const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerifi
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Role (e.g. Coach, Manager)</label>
-              <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required />
+              <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Official Photo</label>
@@ -966,7 +983,7 @@ const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerifi
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Contact (Optional)</label>
-              <Input value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="+254..." />
+              <Input value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="+254..." disabled={!isSuperAdmin} />
             </div>
             <div className="md:col-span-2">
               <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
@@ -1006,9 +1023,11 @@ const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerifi
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(official)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(official.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {isSuperAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(official.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -1020,7 +1039,7 @@ const OfficialManager = ({ officials, isVerified }: { officials: any[], isVerifi
   );
 };
 
-const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boolean }) => {
+const MatchManager = ({ matches, isVerified, isSuperAdmin }: { matches: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1126,12 +1145,16 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Manage Matches</h2>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleAddNext} className="bg-blue-600 hover:bg-blue-700 rounded-full text-xs sm:text-sm">
-            <Plus className="w-4 h-4 mr-2" /> Next Match
-          </Button>
-          <Button onClick={handleAddPrevious} className="bg-red-600 hover:bg-red-700 rounded-full text-xs sm:text-sm">
-            <Plus className="w-4 h-4 mr-2" /> Previous Match
-          </Button>
+          {isSuperAdmin && (
+            <>
+              <Button onClick={handleAddNext} className="bg-blue-600 hover:bg-blue-700 rounded-full text-xs sm:text-sm">
+                <Plus className="w-4 h-4 mr-2" /> Next Match
+              </Button>
+              <Button onClick={handleAddPrevious} className="bg-red-600 hover:bg-red-700 rounded-full text-xs sm:text-sm">
+                <Plus className="w-4 h-4 mr-2" /> Previous Match
+              </Button>
+            </>
+          )}
           {isAdding && (
             <Button variant="outline" onClick={() => {
               setIsAdding(false);
@@ -1149,19 +1172,19 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
           <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Opponent</label>
-              <Input value={formData.opponent} onChange={e => setFormData({...formData, opponent: e.target.value})} required />
+              <Input value={formData.opponent} onChange={e => setFormData({...formData, opponent: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Competition</label>
-              <Input value={formData.competition} onChange={e => setFormData({...formData, competition: e.target.value})} />
+              <Input value={formData.competition} onChange={e => setFormData({...formData, competition: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Date & Time</label>
-              <Input type="datetime-local" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
+              <Input type="datetime-local" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Status</label>
-              <Select value={formData.isUpcoming ? 'true' : 'false'} onValueChange={v => setFormData({...formData, isUpcoming: v === 'true'})}>
+              <Select value={formData.isUpcoming ? 'true' : 'false'} onValueChange={v => setFormData({...formData, isUpcoming: v === 'true'})} disabled={!isSuperAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">Upcoming</SelectItem>
@@ -1189,11 +1212,11 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
               <>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Venue</label>
-                  <Input value={formData.venue} onChange={e => setFormData({...formData, venue: e.target.value})} />
+                  <Input value={formData.venue} onChange={e => setFormData({...formData, venue: e.target.value})} disabled={!isSuperAdmin} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Match Time</label>
-                  <Input value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} placeholder="15:00" />
+                  <Input value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} placeholder="15:00" disabled={!isSuperAdmin} />
                 </div>
               </>
             )}
@@ -1231,9 +1254,11 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(match)} className="text-blue-600 h-8 w-8">
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {isSuperAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1273,9 +1298,11 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(match)} className="text-blue-600 h-8 w-8">
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {isSuperAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(match.id)} className="text-red-600 h-8 w-8">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1293,7 +1320,7 @@ const MatchManager = ({ matches, isVerified }: { matches: any[], isVerified: boo
   );
 };
 
-const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean }) => {
+const NewsManager = ({ news, isVerified, isSuperAdmin }: { news: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1423,17 +1450,19 @@ const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean })
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage News</h2>
-        <Button onClick={() => {
-          if (!isVerified) {
-            toast.error('Email verification required');
-            return;
-          }
-          setIsAdding(!isAdding);
-          if (isAdding) setEditingId(null);
-        }} className="bg-red-600 hover:bg-red-700 rounded-full">
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'Post News'}
-        </Button>
+        {isSuperAdmin && (
+          <Button onClick={() => {
+            if (!isVerified) {
+              toast.error('Email verification required');
+              return;
+            }
+            setIsAdding(!isAdding);
+            if (isAdding) setEditingId(null);
+          }} className="bg-red-600 hover:bg-red-700 rounded-full">
+            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isAdding ? 'Cancel' : 'Post News'}
+          </Button>
+        )}
       </div>
 
 
@@ -1490,7 +1519,7 @@ const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean })
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Content</label>
-              <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="min-h-[200px]" required />
+              <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="min-h-[200px]" required disabled={!isSuperAdmin} />
             </div>
             <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
               {editingId ? 'Update Article' : 'Publish Article'}
@@ -1512,7 +1541,7 @@ const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean })
               <p className="text-sm text-gray-500">{format(item.date, 'MMM dd, yyyy')}</p>
             </div>
             <div className="flex gap-2">
-              {!item.approved && (
+              {isSuperAdmin && !item.approved && (
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -1525,9 +1554,11 @@ const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean })
               <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                 <Edit className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-red-600">
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {isSuperAdmin && (
+                <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-red-600">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </Card>
         ))}
@@ -1536,7 +1567,7 @@ const NewsManager = ({ news, isVerified }: { news: any[], isVerified: boolean })
   );
 };
 
-const GalleryManager = ({ items, isVerified }: { items: any[], isVerified: boolean }) => {
+const GalleryManager = ({ items, isVerified, isSuperAdmin }: { items: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1654,17 +1685,19 @@ const GalleryManager = ({ items, isVerified }: { items: any[], isVerified: boole
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Gallery</h2>
-        <Button onClick={() => {
-          if (!isVerified) {
-            toast.error('Email verification required');
-            return;
-          }
-          setIsAdding(!isAdding);
-          if (isAdding) setEditingId(null);
-        }} className="bg-red-600 hover:bg-red-700 rounded-full">
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'Add Photo'}
-        </Button>
+        {isSuperAdmin && (
+          <Button onClick={() => {
+            if (!isVerified) {
+              toast.error('Email verification required');
+              return;
+            }
+            setIsAdding(!isAdding);
+            if (isAdding) setEditingId(null);
+          }} className="bg-red-600 hover:bg-red-700 rounded-full">
+            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isAdding ? 'Cancel' : 'Add Photo'}
+          </Button>
+        )}
       </div>
 
 
@@ -1717,7 +1750,7 @@ const GalleryManager = ({ items, isVerified }: { items: any[], isVerified: boole
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>
-              <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." />
+              <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." disabled={!isSuperAdmin} />
             </div>
             <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
               {editingId ? 'Update Item' : 'Add to Gallery'}
@@ -1734,9 +1767,11 @@ const GalleryManager = ({ items, isVerified }: { items: any[], isVerified: boole
               <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="text-white hover:text-blue-400">
                 <Edit className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-white hover:text-red-400">
-                <Trash2 className="w-5 h-5" />
-              </Button>
+              {isSuperAdmin && (
+                <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-white hover:text-red-400">
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -1775,7 +1810,7 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
   );
 };
 
-const SettingsManager = ({ stats, social, isVerified }: { stats: any, social: any, isVerified: boolean }) => {
+const SettingsManager = ({ stats, social, isVerified, isSuperAdmin }: { stats: any, social: any, isVerified: boolean, isSuperAdmin: boolean }) => {
   const [formData, setFormData] = useState({
     wins: '0',
     draws: '0',
@@ -1875,38 +1910,38 @@ const SettingsManager = ({ stats, social, isVerified }: { stats: any, social: an
           <form onSubmit={handleSaveStats} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Total Matches</label>
-              <Input type="number" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} />
+              <Input type="number" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Wins</label>
-              <Input type="number" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} />
+              <Input type="number" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Draws</label>
-              <Input type="number" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} />
+              <Input type="number" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Losses</label>
-              <Input type="number" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} />
+              <Input type="number" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals Scored</label>
-              <Input type="number" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} />
+              <Input type="number" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals Conceded</label>
-              <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} />
+              <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
-              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} />
+              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Average Rating</label>
-              <Input type="number" step="0.1" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} />
+              <Input type="number" step="0.1" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="md:col-span-2 lg:col-span-4 pt-4">
-              <Button type="submit" className="w-full bg-gray-900 hover:bg-black text-white h-14 rounded-xl font-bold">
+              <Button type="submit" className="w-full bg-gray-900 hover:bg-black text-white h-14 rounded-xl font-bold" disabled={!isSuperAdmin}>
                 Update Team Stats <Save className="ml-2 w-5 h-5" />
               </Button>
             </div>
@@ -1985,7 +2020,7 @@ const SettingsManager = ({ stats, social, isVerified }: { stats: any, social: an
   );
 };
 
-const SupabaseMediaManager = ({ items, onRefresh, isVerified }: { items: any[], onRefresh: () => void, isVerified: boolean }) => {
+const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin }: { items: any[], onRefresh: () => void, isVerified: boolean, isSuperAdmin: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -2079,13 +2114,15 @@ const SupabaseMediaManager = ({ items, onRefresh, isVerified }: { items: any[], 
           <h2 className="text-2xl font-bold text-gray-900">Supabase Media Cloud</h2>
           <p className="text-xs text-gray-500 font-medium">Assets stored in Supabase PostgreSQL & Storage</p>
         </div>
-        <Button 
-          onClick={() => setIsAdding(!isAdding)} 
-          className={`${isAdding ? 'bg-gray-100 text-gray-900' : 'bg-emerald-600 text-white hover:bg-emerald-700'} rounded-2xl h-11 px-6 font-bold transition-all`}
-        >
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'New Upload'}
-        </Button>
+        {isSuperAdmin && (
+          <Button 
+            onClick={() => setIsAdding(!isAdding)} 
+            className={`${isAdding ? 'bg-gray-100 text-gray-900' : 'bg-emerald-600 text-white hover:bg-emerald-700'} rounded-2xl h-11 px-6 font-bold transition-all`}
+          >
+            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isAdding ? 'Cancel' : 'New Upload'}
+          </Button>
+        )}
       </div>
 
       {isAdding && (
@@ -2178,14 +2215,16 @@ const SupabaseMediaManager = ({ items, onRefresh, isVerified }: { items: any[], 
                     {format(new Date(item.created_at), 'MMM dd, yyyy')}
                   </span>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleDelete(item.id)} 
-                      className="h-8 w-8 rounded-full bg-white/10 hover:bg-red-500 hover:text-white transition-all text-gray-300"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {isSuperAdmin && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDelete(item.id)} 
+                        className="h-8 w-8 rounded-full bg-white/10 hover:bg-red-500 hover:text-white transition-all text-gray-300"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2202,6 +2241,98 @@ const SupabaseMediaManager = ({ items, onRefresh, isVerified }: { items: any[], 
       </div>
     </div>
   );
+};
+
+const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'users'), (s) => {
+      setUsers(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const updateRole = async (userId: string, role: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), { role });
+      toast.success(`Role updated to ${role} for user.`);
+    } catch (error) {
+      toast.error('Failed to update role');
+    }
+  };
+
+  const deleteUserRecord = async (id: string) => {
+     try {
+       await deleteDoc(doc(db, 'users', id));
+       toast.success('User access revoked');
+     } catch (error) {
+       toast.error('Failed to revoke access');
+     }
+  }
+
+  if (loading) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-2xl font-bold text-gray-900">Access Control</h2>
+        <p className="text-gray-500 text-sm">Manage administrative roles and permissions for your team. Only Super Admins can see this.</p>
+      </div>
+
+      <div className="grid gap-4">
+        {users.map((u) => (
+          <Card key={u.id} className="p-6 bg-white border-none shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h3 className="font-bold text-gray-900">{u.email}</h3>
+                {u.id === currentUserId && <Badge className="bg-blue-100 text-blue-600 border-none">You</Badge>}
+              </div>
+              <p className="text-[10px] text-gray-400 font-mono tracking-tighter">UID: {u.id}</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Select value={u.role} onValueChange={(val) => updateRole(u.id, val)}>
+                <SelectTrigger className="w-40 h-10 border-gray-200 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="editor">Editor (Photos/Names Only)</SelectItem>
+                </SelectContent>
+              </Select>
+              {u.id !== currentUserId && (
+                <Button variant="ghost" size="icon" onClick={() => deleteUserRecord(u.id)} className="text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="p-8 bg-blue-50 border-none border-l-4 border-l-blue-400 rounded-2xl">
+        <div className="flex gap-4">
+          <Shield className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <div>
+            <h4 className="font-bold text-blue-900 mb-2 underline decoration-blue-200">Role Permissions Guide:</h4>
+            <ul className="text-sm text-blue-800 space-y-3">
+              <li className="flex gap-2">
+                <Badge className="bg-blue-600 h-fit">Super Admin</Badge>
+                <span>Full access to team stats, matches, finances, and role management.</span>
+              </li>
+              <li className="flex gap-2">
+                <Badge className="bg-slate-400 h-fit">Editor</Badge>
+                <span>Can update **names** and **photos** of players/officials, and **video links** to matches. Cannot add/delete items or change stats.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
 };
 
 export default AdminPage;

@@ -386,12 +386,32 @@ const Footer = ({ social }: { social: any }) => {
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<'super_admin' | 'editor' | null>(null);
   const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    let unsubRole: () => void = () => {};
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u) {
+        // Fallback for primary admin
+        if (u.email === '149benblue@gmail.com') {
+          setRole('super_admin');
+        }
+        
+        // Listen to role changes in Firestore
+        unsubRole = onSnapshot(doc(db, 'users', u.uid), (d) => {
+          if (d.exists()) {
+            setRole(d.data().role);
+          } else if (u.email !== '149benblue@gmail.com') {
+            setRole(null);
+          }
+        });
+      } else {
+        setRole(null);
+      }
       setLoading(false);
     });
 
@@ -401,6 +421,7 @@ export default function App() {
 
     return () => {
       unsubscribe();
+      unsubRole();
       unsubSocial();
     };
   }, []);
@@ -430,7 +451,7 @@ export default function App() {
               <Route path="/gallery" element={<PageWrapper><GalleryPage /></PageWrapper>} />
               <Route path="/news" element={<PageWrapper><NewsPage /></PageWrapper>} />
               <Route path="/donate" element={<PageWrapper><DonationsPage /></PageWrapper>} />
-              <Route path="/admin" element={<PageWrapper><AdminPage user={user} /></PageWrapper>} />
+              <Route path="/admin" element={<PageWrapper><AdminPage user={user} role={role} /></PageWrapper>} />
             </Routes>
           </AnimatePresence>
         </main>

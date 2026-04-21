@@ -74,18 +74,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSuperAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (getRole() == 'super_admin' || 
          (request.auth.token.email == "149benblue@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isEditor() {
+      return isAuthenticated() && (getRole() == 'editor' || isSuperAdmin());
     }
 
     function isValidUrl(url) {
       return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
     }
 
     // ===============================================================
@@ -93,35 +97,49 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isSuperAdmin();
     }
 
     match /players/{playerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isEditor() && (
+        isSuperAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo'])
+      );
     }
 
     match /officials/{officialId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isEditor() && (
+        isSuperAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo'])
+      );
     }
 
     match /matches/{matchId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isEditor() && (
+        isSuperAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoUrl'])
+      );
     }
 
     match /news/{newsId} {
       allow read: if true;
-      allow create: if 
-        (request.resource.data.title is string && request.resource.data.title.size() > 0) &&
-        (request.resource.data.content is string && request.resource.data.content.size() > 0) &&
-        (
-          (isAdmin() && request.resource.data.approved == true) || 
-          (request.resource.data.approved == false)
-        );
-      allow update, delete: if isAdmin();
+      allow create: if isEditor() || (
+        request.resource.data.title is string && 
+        request.resource.data.content is string && 
+        request.resource.data.approved == false
+      );
+      allow update: if isEditor() && (
+        isSuperAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'image'])
+      );
+      allow delete: if isSuperAdmin();
     }
 
     match /donations/{donationId} {

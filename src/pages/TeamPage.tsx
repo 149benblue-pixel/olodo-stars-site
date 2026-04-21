@@ -109,10 +109,10 @@ const TeamPage = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" render={<a href="#players" />} className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-full border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">
+              <Button variant="outline" size="sm" render={<a href="#players" />} nativeButton={false} className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-full border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">
                 Squad
               </Button>
-              <Button variant="outline" size="sm" render={<a href="#officials" />} className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-full border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">
+              <Button variant="outline" size="sm" render={<a href="#officials" />} nativeButton={false} className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-full border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">
                 Staff
               </Button>
             </div>

@@ -59,9 +59,9 @@ const TopBar = ({ social }: { social: any }) => (
         </div>
       </div>
       <div className="flex items-center gap-6">
-        <a href={`mailto:${social?.email || '149benvolio@gmail.com'}`} className="hover:text-red-500 transition-colors flex items-center gap-2">
+        <a href={`mailto:${social?.email || '149benblue@gmail.com'}`} className="hover:text-red-500 transition-colors flex items-center gap-2">
           <Mail className="w-3 h-3 text-red-500" />
-          <span>{social?.email || '149benvolio@gmail.com'}</span>
+          <span>{social?.email || '149benblue@gmail.com'}</span>
         </a>
         <a href={`tel:${(social?.phone || '+254 723 134611').replace(/\s+/g, '')}`} className="hover:text-red-500 transition-colors flex items-center gap-2">
           <Phone className="w-3 h-3 text-red-500" />
@@ -103,7 +103,7 @@ const Navbar = ({ user }: { user: User | null }) => {
     { name: 'Donate', path: '/donate', icon: Heart },
   ];
 
-  const isAdmin = user?.email === '149benvolio@gmail.com' || user?.email === '149benblue@gmail.com';
+  const isAdmin = user?.email === '149benblue@gmail.com';
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -336,13 +336,13 @@ const Footer = ({ social }: { social: any }) => {
           <div className="md:col-span-4">
             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-red-500 mb-10">Get In Touch</h3>
             <div className="space-y-8">
-              <a href={`mailto:${social?.email || '149benvolio@gmail.com'}`} className="flex items-start gap-4 group cursor-pointer">
+              <a href={`mailto:${social?.email || '149benblue@gmail.com'}`} className="flex items-start gap-4 group cursor-pointer">
                 <div className="p-3 bg-white/5 rounded-2xl group-hover:bg-red-600 transition-colors">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Email Us</div>
-                  <div className="text-slate-200 font-bold group-hover:text-red-500 transition-colors">{social?.email || '149benvolio@gmail.com'}</div>
+                  <div className="text-slate-200 font-bold group-hover:text-red-500 transition-colors">{social?.email || '149benblue@gmail.com'}</div>
                 </div>
               </a>
               <a href={`tel:${(social?.phone || '+254 723 134611').replace(/\s+/g, '')}`} className="flex items-start gap-4 group cursor-pointer">

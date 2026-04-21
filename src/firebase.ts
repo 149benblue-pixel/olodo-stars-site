@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -14,36 +14,50 @@ export const googleProvider = new GoogleAuthProvider();
  * Uploads a file to Firebase Storage and returns the download URL.
  * @param file The file to upload.
  * @param path The path in storage where the file should be saved.
+ * @param onProgress Callback for upload progress (0-100).
  * @returns A promise that resolves to the download URL.
  */
-export const uploadFile = async (file: File, path: string): Promise<string> => {
+export const uploadFile = async (
+  file: File, 
+  path: string, 
+  onProgress?: (progress: number) => void
+): Promise<string> => {
   try {
     if (!storage) {
       throw new Error('Firebase Storage is not initialized. Please check your configuration.');
     }
     
-    // Log attempt
-    console.log(`Attempting to upload ${file.name} (${file.size} bytes) to ${path}`);
-    
+    console.log(`Attempting to upload ${file.name} to ${path}`);
     const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    
-    console.log('Upload successful, URL:', url);
-    return url;
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        },
+        (error) => {
+          console.error('Error in uploadFile:', error);
+          if (error.code === 'storage/unauthorized') {
+            reject(new Error('Permission denied. Please ensure you are logged in.'));
+          } else if (error.code === 'storage/quota-exceeded') {
+            reject(new Error('Storage quota exceeded. Please try again later.'));
+          } else {
+            reject(new Error(error.message || 'An unknown error occurred during upload.'));
+          }
+        },
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          console.log('Upload successful, URL:', url);
+          resolve(url);
+        }
+      );
+    });
   } catch (error: any) {
-    console.error('Error in uploadFile:', error);
-    
-    // Provide more context for common errors
-    if (error.code === 'storage/unauthorized') {
-      throw new Error('Permission denied. Please ensure you are logged in and have the correct permissions.');
-    } else if (error.code === 'storage/quota-exceeded') {
-      throw new Error('Storage quota exceeded. Please try again later.');
-    } else if (error.code === 'storage/retry-limit-exceeded') {
-      throw new Error('Upload timed out. Please check your internet connection.');
-    }
-    
-    throw new Error(error.message || 'An unknown error occurred during upload.');
+    console.error('Initial error in uploadFile:', error);
+    throw error;
   }
 };
 

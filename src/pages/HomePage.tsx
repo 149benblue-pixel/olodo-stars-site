@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Trophy, Users, Calendar, ArrowRight, Heart, MapPin, Clock } from 'lucide-react';
+import { Trophy, Users, Calendar, ArrowRight, Heart, MapPin, Clock, Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { format } from 'date-fns';
+import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const HomePage = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
@@ -15,6 +18,51 @@ const HomePage = () => {
   const [stats, setStats] = useState<any>(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, min: number, sec: number } | null>(null);
+
+  const nextMatch = useMemo(() => {
+    return upcomingMatches[0];
+  }, [upcomingMatches]);
+
+  useEffect(() => {
+    if (!nextMatch) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const target = nextMatch.date;
+      
+      if (target > now) {
+        setTimeLeft({
+          days: differenceInDays(target, now),
+          hours: differenceInHours(target, now) % 24,
+          min: differenceInMinutes(target, now) % 60,
+          sec: differenceInSeconds(target, now) % 60
+        });
+      } else {
+        setTimeLeft(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [nextMatch]);
+
+  const handleReminder = (match: any) => {
+    const reminders = JSON.parse(localStorage.getItem('matchReminders') || '[]');
+    if (reminders.includes(match.id)) {
+      toast.info('You already have a reminder set for this match! 🔔');
+      return;
+    }
+    
+    reminders.push(match.id);
+    localStorage.setItem('matchReminders', JSON.stringify(reminders));
+    toast.success(`Reminder set! We'll notify you before the game against ${match.opponent} 🏟️`, {
+      description: `Kickoff at ${match.time || 'TBD'} on ${format(match.date, 'MMM dd')}`,
+    });
+
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  };
 
   useEffect(() => {
     // Fetch Matches
@@ -101,7 +149,7 @@ const HomePage = () => {
             <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
               More than a club. A community. A passion. <span className="text-white font-black border-b-2 border-red-600 pb-1">#FutaSikuZote</span>
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
               <Link 
                 to="/team" 
                 className="w-full sm:w-auto px-10 py-5 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-700 transition-all transform hover:scale-105 flex items-center justify-center gap-3 shadow-2xl shadow-red-600/40"
@@ -115,12 +163,53 @@ const HomePage = () => {
                 Support Us <Heart className="w-5 h-5 text-red-600" />
               </Link>
             </div>
+
+            {/* Countdown to Next Match */}
+            {nextMatch && timeLeft && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto flex flex-col md:flex-row items-center gap-8 text-left"
+              >
+                <div className="flex-1 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-2 mb-2 text-xs font-black text-red-500 uppercase tracking-widest">
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                    Next Match Countdown
+                  </div>
+                  <h3 className="text-2xl font-black text-white mb-4">vs {nextMatch.opponent}</h3>
+                  <button 
+                    onClick={() => handleReminder(nextMatch)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+                  >
+                    <Bell className="w-3 h-3" /> Set Match Reminder
+                  </button>
+                </div>
+                <div className="flex gap-4 sm:gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.days).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Days</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.hours).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hrs</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.min).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Min</div>
+                  </div>
+                  <div className="text-center border-l border-white/10 pl-4 sm:pl-6">
+                    <div className="text-3xl font-black text-red-600 font-mono">{String(timeLeft.sec).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Sec</div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         </div>
 
         {/* Floating Stats */}
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-slate-900/40 backdrop-blur-xl border-t border-white/10 py-10 hidden md:block">
-          <div className="max-w-7xl mx-auto px-4 grid grid-cols-4 gap-12">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-5 gap-8">
             <div className="text-center group">
               <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{playerCount}</div>
               <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Active Players</div>
@@ -128,6 +217,10 @@ const HomePage = () => {
             <div className="text-center group">
               <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.wins || 0}</div>
               <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Season Victories</div>
+            </div>
+            <div className="text-center group">
+              <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.cleanSheets || 0}</div>
+              <div className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em]">Clean Sheets</div>
             </div>
             <div className="text-center group">
               <div className="text-4xl font-black text-white mb-1 group-hover:scale-110 transition-transform">{stats?.averageRating || '0.0'}</div>
@@ -199,6 +292,13 @@ const HomePage = () => {
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" /> {match.time || format(match.date, 'HH:mm')}
                       </div>
+                      <button 
+                        onClick={() => handleReminder(match)}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-gray-400 hover:text-red-600"
+                        title="Set Reminder"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </motion.div>
                 )) : (

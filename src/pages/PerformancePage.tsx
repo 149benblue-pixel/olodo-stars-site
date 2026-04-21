@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp } from 'lucide-react';
+import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp, Bell, BellRing } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { format } from 'date-fns';
+import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
+import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 
 interface Match {
@@ -77,6 +78,51 @@ const PerformancePage = () => {
 
   const upcomingMatches = matches.filter(m => m.isUpcoming).sort((a, b) => a.date.getTime() - b.date.getTime());
   const pastMatches = matches.filter(m => !m.isUpcoming).sort((a, b) => b.date.getTime() - a.date.getTime());
+  const nextMatch = upcomingMatches[0];
+
+  const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, min: number, sec: number } | null>(null);
+
+  useEffect(() => {
+    if (!nextMatch) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const target = nextMatch.date;
+      
+      if (target > now) {
+        setTimeLeft({
+          days: differenceInDays(target, now),
+          hours: differenceInHours(target, now) % 24,
+          min: differenceInMinutes(target, now) % 60,
+          sec: differenceInSeconds(target, now) % 60
+        });
+      } else {
+        setTimeLeft(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [nextMatch]);
+
+  const handleReminder = (match: Match) => {
+    const reminders = JSON.parse(localStorage.getItem('matchReminders') || '[]');
+    if (reminders.includes(match.id)) {
+      toast.info('You already have a reminder set for this match! 🔔');
+      return;
+    }
+    
+    reminders.push(match.id);
+    localStorage.setItem('matchReminders', JSON.stringify(reminders));
+    toast.success(`Reminder set! We'll notify you before the game against ${match.opponent} 🏟️`, {
+      description: `Kickoff at ${match.time || 'TBD'} on ${format(match.date, 'MMM dd')}`,
+    });
+
+    // In a real app, we would register a service worker or push notification here.
+    // We'll simulate a browser notification permission request.
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  };
 
   const chartData = useMemo(() => {
     const past = matches.filter(m => !m.isUpcoming).sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -110,6 +156,82 @@ const PerformancePage = () => {
             Tracking our journey, celebrating our wins, and preparing for the next challenge.
           </p>
         </div>
+
+        {/* Next Match Countdown */}
+        {nextMatch && timeLeft && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-12 relative overflow-hidden bg-gray-900 rounded-[2rem] p-8 sm:p-12 text-white shadow-2xl"
+          >
+            <div className="absolute top-0 right-0 w-1/2 h-full bg-red-600/10 -skew-x-12 translate-x-1/4 pointer-events-none" />
+            <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-12">
+              <div className="flex-1 text-center lg:text-left">
+                <Badge className="bg-red-600 hover:bg-red-600 text-white border-none px-4 py-1 rounded-full mb-4 animate-pulse uppercase tracking-[0.2em] text-[10px] font-black">
+                  Next Match
+                </Badge>
+                <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-3xl font-black mb-2 border border-white/10">O</div>
+                    <div className="text-xs font-bold uppercase tracking-widest text-gray-400">Olodo Stars</div>
+                  </div>
+                  <div className="text-4xl font-black text-red-600 italic">VS</div>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-3xl font-black mb-2 shadow-lg shadow-red-600/20">{nextMatch.opponent.charAt(0)}</div>
+                    <div className="text-xs font-bold uppercase tracking-widest text-gray-400">{nextMatch.opponent}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-gray-300 text-sm">
+                  <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <Calendar className="w-4 h-4 text-red-500" />
+                    <span className="font-medium">{format(nextMatch.date, 'EEEE, MMM dd')}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <Clock className="w-4 h-4 text-red-500" />
+                    <span className="font-medium">{nextMatch.time || 'TBD'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <MapPin className="w-4 h-4 text-red-500" />
+                    <span className="font-medium">{nextMatch.venue || 'TBD'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-shrink-0 bg-white/5 backdrop-blur-md rounded-[2.5rem] p-8 border border-white/10 shadow-inner">
+                <div className="text-center mb-6">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Kickoff In</span>
+                </div>
+                <div className="flex gap-4 sm:gap-8">
+                  <div className="text-center">
+                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.days).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Days</div>
+                  </div>
+                  <div className="text-4xl sm:text-5xl font-black text-gray-700">:</div>
+                  <div className="text-center">
+                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.hours).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Hours</div>
+                  </div>
+                  <div className="text-4xl sm:text-5xl font-black text-gray-700">:</div>
+                  <div className="text-center">
+                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.min).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Mins</div>
+                  </div>
+                  <div className="text-4xl sm:text-5xl font-black text-gray-700 md:hidden sm:block block">:</div>
+                  <div className="text-center hidden sm:block">
+                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter text-red-600">{String(timeLeft.sec).padStart(2, '0')}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Secs</div>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => handleReminder(nextMatch)}
+                  className="w-full mt-8 bg-white text-gray-900 hover:bg-gray-100 rounded-2xl h-14 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"
+                >
+                  <Bell className="w-4 h-4" /> Remind Me
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -298,8 +420,11 @@ const PerformancePage = () => {
                         </div>
                       </div>
                     </div>
-                    <button className="w-full sm:w-auto px-6 py-2 bg-gray-900 text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors">
-                      Remind Me
+                    <button 
+                      onClick={() => handleReminder(match)}
+                      className="w-full sm:w-auto px-6 py-2 bg-gray-900 text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-all flex items-center justify-center gap-2 group/btn"
+                    >
+                      <Bell className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> Remind Me
                     </button>
                   </motion.div>
                 ))}

@@ -35,23 +35,32 @@ export const uploadFile = async (
       uploadTask.on(
         'state_changed',
         (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          const progress = snapshot.totalBytes > 0 
+            ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100 
+            : 0;
           if (onProgress) onProgress(progress);
         },
         (error) => {
           console.error('Error in uploadFile:', error);
           if (error.code === 'storage/unauthorized') {
-            reject(new Error('Permission denied. Please ensure you are logged in.'));
+            reject(new Error('Permission denied. Please ensure you are logged in and have permissions.'));
           } else if (error.code === 'storage/quota-exceeded') {
             reject(new Error('Storage quota exceeded. Please try again later.'));
+          } else if (error.code === 'storage/canceled') {
+            reject(new Error('Upload canceled.'));
           } else {
             reject(new Error(error.message || 'An unknown error occurred during upload.'));
           }
         },
         async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log('Upload successful, URL:', url);
-          resolve(url);
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            console.log('Upload successful, URL:', url);
+            resolve(url);
+          } catch (urlError: any) {
+            console.error('Error getting download URL:', urlError);
+            reject(new Error(`Upload succeeded but could not get URL: ${urlError.message}`));
+          }
         }
       );
     });

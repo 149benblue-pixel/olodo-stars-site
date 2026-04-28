@@ -9,6 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CountdownTimer } from '../components/CountdownTimer';
 
 const HomePage = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
@@ -18,33 +19,10 @@ const HomePage = () => {
   const [stats, setStats] = useState<any>(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, min: number, sec: number } | null>(null);
 
   const nextMatch = useMemo(() => {
     return upcomingMatches[0];
   }, [upcomingMatches]);
-
-  useEffect(() => {
-    if (!nextMatch) return;
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      const target = nextMatch.date;
-      
-      if (target > now) {
-        setTimeLeft({
-          days: differenceInDays(target, now),
-          hours: differenceInHours(target, now) % 24,
-          min: differenceInMinutes(target, now) % 60,
-          sec: differenceInSeconds(target, now) % 60
-        });
-      } else {
-        setTimeLeft(null);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [nextMatch]);
 
   const handleReminder = (match: any) => {
     const reminders = JSON.parse(localStorage.getItem('matchReminders') || '[]');
@@ -165,7 +143,7 @@ const HomePage = () => {
             </div>
 
             {/* Countdown to Next Match */}
-            {nextMatch && timeLeft && (
+            {nextMatch && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -184,24 +162,7 @@ const HomePage = () => {
                     <Bell className="w-3 h-3" /> Set Match Reminder
                   </button>
                 </div>
-                <div className="flex gap-4 sm:gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.days).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Days</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.hours).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hrs</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-black text-white font-mono">{String(timeLeft.min).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Min</div>
-                  </div>
-                  <div className="text-center border-l border-white/10 pl-4 sm:pl-6">
-                    <div className="text-3xl font-black text-red-600 font-mono">{String(timeLeft.sec).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Sec</div>
-                  </div>
-                </div>
+                <CountdownTimer targetDate={nextMatch.date} variant="large" />
               </motion.div>
             )}
           </motion.div>
@@ -274,7 +235,8 @@ const HomePage = () => {
                       </div>
                       <div className="flex flex-col items-center gap-1">
                         <div className="text-xs font-black text-gray-300 uppercase italic">VS</div>
-                        <div className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                        <CountdownTimer targetDate={match.date} variant="compact" />
+                        <div className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full mt-1">
                           {format(match.date, 'MMM dd')}
                         </div>
                       </div>

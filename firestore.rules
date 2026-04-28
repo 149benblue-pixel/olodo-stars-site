@@ -84,6 +84,10 @@ service cloud.firestore {
          (request.auth.token.email == "149benblue@gmail.com" && request.auth.token.email_verified == true));
     }
 
+    function isAdmin() {
+      return isSuperAdmin();
+    }
+
     function isEditor() {
       return isAuthenticated() && (getRole() == 'editor' || isSuperAdmin());
     }
@@ -124,7 +128,7 @@ service cloud.firestore {
       allow create, delete: if isSuperAdmin();
       allow update: if isEditor() && (
         isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoUrl'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoUrl', 'score'])
       );
     }
 
@@ -137,15 +141,15 @@ service cloud.firestore {
       );
       allow update: if isEditor() && (
         isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'image'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'image', 'content'])
       );
       allow delete: if isSuperAdmin();
     }
 
     match /donations/{donationId} {
-      allow read: if isAdmin();
+      allow read: if isSuperAdmin();
       allow create: if request.resource.data.amount is number && request.resource.data.amount > 0;
-      allow update, delete: if isAdmin();
+      allow update, delete: if isSuperAdmin();
     }
 
     match /settings/{settingId} {
@@ -155,7 +159,11 @@ service cloud.firestore {
 
     match /gallery/{imageId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isEditor() && (
+        isSuperAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['url', 'caption'])
+      );
     }
   }
 }

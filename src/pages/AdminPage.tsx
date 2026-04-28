@@ -178,7 +178,7 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
 
   const isSuperAdmin = role === 'super_admin' || user?.email === '149benblue@gmail.com';
   const isEditor = role === 'editor' || isSuperAdmin;
-  const isVerified = user?.emailVerified;
+  const isVerified = user?.emailVerified || user?.email === '149benblue@gmail.com';
 
   useEffect(() => {
     if (!isEditor) return;
@@ -304,9 +304,11 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
             <TabsTrigger value="gallery" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
               <ImageIcon className="w-3 h-3" /> Media
             </TabsTrigger>
-            <TabsTrigger value="donations" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Heart className="w-3 h-3" /> Gifts
-            </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="donations" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
+                <Heart className="w-3 h-3" /> Gifts
+              </TabsTrigger>
+            )}
             <TabsTrigger value="supabase-media" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
               <Zap className="w-3 h-3" /> Supa Media
             </TabsTrigger>
@@ -383,9 +385,11 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
             <GalleryManager items={gallery} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
-          <TabsContent value="donations">
-            <DonationManager donations={donations} />
-          </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="donations">
+              <DonationManager donations={donations} />
+            </TabsContent>
+          )}
 
           {isSuperAdmin && (
             <TabsContent value="roles">
@@ -1750,7 +1754,7 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin }: { items: any[], isV
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Caption</label>
-              <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." disabled={!isSuperAdmin} />
+              <Input value={formData.caption} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Match celebration..." />
             </div>
             <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
               {editingId ? 'Update Item' : 'Add to Gallery'}

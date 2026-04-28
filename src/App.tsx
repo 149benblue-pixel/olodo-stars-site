@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { auth, signInWithGoogle, logout, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Toaster } from 'sonner';
 
 // Pages (to be implemented)
@@ -391,14 +391,38 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubRole: () => void = () => {};
+    let unsubRole: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      // Clean up previous role listener if it exists
+      if (unsubRole) {
+        unsubRole();
+        unsubRole = null;
+      }
+
       setUser(u);
       if (u) {
         // Fallback for primary admin
         if (u.email === '149benblue@gmail.com') {
           setRole('super_admin');
+        }
+
+        // Ensure user document exists in Firestore for admin to manage
+        try {
+          const userDocRef = doc(db, 'users', u.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (!userDoc.exists()) {
+            await setDoc(userDocRef, {
+              email: u.email,
+              role: u.email === '149benblue@gmail.com' ? 'super_admin' : 'viewer',
+              createdAt: serverTimestamp()
+            });
+          } else if (u.email === '149benblue@gmail.com' && userDoc.data().role !== 'super_admin') {
+             // Ensure the hardcoded admin always has the role in DB
+             await updateDoc(userDocRef, { role: 'super_admin' });
+          }
+        } catch (err) {
+          console.error("Error checking/creating user doc:", err);
         }
         
         // Listen to role changes in Firestore
@@ -421,7 +445,7 @@ export default function App() {
 
     return () => {
       unsubscribe();
-      unsubRole();
+      if (unsubRole) unsubRole();
       unsubSocial();
     };
   }, []);

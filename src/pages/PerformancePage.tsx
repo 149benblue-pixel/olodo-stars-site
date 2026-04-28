@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
+import { CountdownTimer } from '../components/CountdownTimer';
 
 interface Match {
   id: string;
@@ -80,30 +81,6 @@ const PerformancePage = () => {
   const pastMatches = matches.filter(m => !m.isUpcoming).sort((a, b) => b.date.getTime() - a.date.getTime());
   const nextMatch = upcomingMatches[0];
 
-  const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, min: number, sec: number } | null>(null);
-
-  useEffect(() => {
-    if (!nextMatch) return;
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      const target = nextMatch.date;
-      
-      if (target > now) {
-        setTimeLeft({
-          days: differenceInDays(target, now),
-          hours: differenceInHours(target, now) % 24,
-          min: differenceInMinutes(target, now) % 60,
-          sec: differenceInSeconds(target, now) % 60
-        });
-      } else {
-        setTimeLeft(null);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [nextMatch]);
-
   const handleReminder = (match: Match) => {
     const reminders = JSON.parse(localStorage.getItem('matchReminders') || '[]');
     if (reminders.includes(match.id)) {
@@ -158,7 +135,7 @@ const PerformancePage = () => {
         </div>
 
         {/* Next Match Countdown */}
-        {nextMatch && timeLeft && (
+        {nextMatch && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -201,27 +178,9 @@ const PerformancePage = () => {
                 <div className="text-center mb-6">
                   <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Kickoff In</span>
                 </div>
-                <div className="flex gap-4 sm:gap-8">
-                  <div className="text-center">
-                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.days).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Days</div>
-                  </div>
-                  <div className="text-4xl sm:text-5xl font-black text-gray-700">:</div>
-                  <div className="text-center">
-                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.hours).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Hours</div>
-                  </div>
-                  <div className="text-4xl sm:text-5xl font-black text-gray-700">:</div>
-                  <div className="text-center">
-                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter">{String(timeLeft.min).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Mins</div>
-                  </div>
-                  <div className="text-4xl sm:text-5xl font-black text-gray-700 md:hidden sm:block block">:</div>
-                  <div className="text-center hidden sm:block">
-                    <div className="text-4xl sm:text-5xl font-black mb-1 font-mono tracking-tighter text-red-600">{String(timeLeft.sec).padStart(2, '0')}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Secs</div>
-                  </div>
-                </div>
+                
+                <CountdownTimer targetDate={nextMatch.date} variant="large" className="mb-6" />
+
                 <Button 
                   onClick={() => handleReminder(nextMatch)}
                   className="w-full mt-8 bg-white text-gray-900 hover:bg-gray-100 rounded-2xl h-14 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"
@@ -407,7 +366,10 @@ const PerformancePage = () => {
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-xs">{format(match.date, 'MMM yyyy')}</div>
                     </div>
                     <div className="flex-grow text-center sm:text-left">
-                      <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{match.competition}</div>
+                      <div className="flex items-center justify-center sm:justify-start gap-4 mb-1">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">{match.competition}</div>
+                        <CountdownTimer targetDate={match.date} variant="compact" />
+                      </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">vs {match.opponent}</h3>
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">

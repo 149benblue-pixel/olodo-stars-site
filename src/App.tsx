@@ -432,11 +432,12 @@ export default function App() {
           } else if (u.email !== '149benblue@gmail.com') {
             setRole(null);
           }
+          setLoading(false); // Move loading to here for authenticated users
         });
       } else {
         setRole(null);
+        setLoading(false); // Loading is done if no user
       }
-      setLoading(false);
     });
 
     const unsubSocial = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {

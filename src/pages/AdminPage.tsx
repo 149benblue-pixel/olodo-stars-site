@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { db, storage, uploadFile } from '../firebase';
+import { auth, db, signInWithGoogle, logout, storage, uploadFile } from '../firebase';
 import { supabase, isSupabaseConfigured, uploadToSupabase } from '../supabase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
@@ -66,7 +66,7 @@ import { format } from 'date-fns';
 
 interface AdminPageProps {
   user: User | null;
-  role: 'super_admin' | 'editor' | null;
+  role: string | null;
 }
 
 const DatabaseStatus = () => {
@@ -238,20 +238,56 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
     };
   }, [isEditor]);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-3xl p-12 text-center shadow-xl">
+          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-8">
+            <LayoutDashboard className="w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Admin Authentication</h2>
+          <p className="text-gray-600 mb-8">
+            Please login with your club credentials to access the management panel.
+          </p>
+          <Button 
+            onClick={() => signInWithGoogle()} 
+            className="w-full bg-red-600 hover:bg-red-700 rounded-full h-14 font-black uppercase tracking-widest text-xs"
+          >
+            Login with Google
+          </Button>
+          <button 
+            onClick={() => window.location.href = '/'} 
+            className="mt-6 text-xs font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!isEditor) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-12 text-center shadow-xl">
           <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 mx-auto mb-8">
-            <X className="w-10 h-10" />
+            <Shield className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-8">
-            You do not have permission to access the admin panel. If you are an official, please contact the main administrator.
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Unauthorized Access</h2>
+          <p className="text-gray-600 mb-4">
+            Hello <span className="font-bold text-gray-900">{user.email}</span>, you don't have administrative privileges yet.
           </p>
-          <Button onClick={() => window.location.href = '/'} className="w-full bg-red-600 hover:bg-red-700 rounded-full">
-            Back to Home
-          </Button>
+          <p className="text-xs text-gray-400 mb-8 leading-relaxed">
+            Your account has been registered as a <span className="font-bold">Viewer</span>. Please contact the team administrator to upgrade your access level.
+          </p>
+          <div className="flex flex-col gap-4">
+            <Button onClick={() => logout()} variant="outline" className="w-full rounded-full border-gray-200">
+              Sign Out
+            </Button>
+            <Button onClick={() => window.location.href = '/'} className="w-full bg-slate-900 hover:bg-black rounded-full">
+              Return Home
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -2307,6 +2343,7 @@ const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                   <SelectItem value="editor">Editor (Photos/Names Only)</SelectItem>
+                  <SelectItem value="viewer">Viewer (No Access)</SelectItem>
                 </SelectContent>
               </Select>
               {u.id !== currentUserId && (

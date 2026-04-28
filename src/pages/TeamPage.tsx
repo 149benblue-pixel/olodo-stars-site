@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Shield, Zap, Target, Phone, Mail, ArrowUpDown } from 'lucide-react';
+import { Users, Shield, Zap, Target, Phone, Mail, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,7 @@ interface Official {
   contact?: string;
 }
 
-const PLAYER_PLACEHOLDER = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=400&h=533";
+const PLAYER_PLACEHOLDER = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 const OFFICIAL_PLACEHOLDER = "https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=200&h=200";
 
 const TeamPage = () => {
@@ -178,58 +179,66 @@ const TeamPage = () => {
                         whileHover={{ y: -10 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <Card className="overflow-hidden border-none shadow-lg hover:shadow-xl transition-all bg-white group h-full rounded-2xl">
-                          <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
-                            <img
-                              src={player.photo || PLAYER_PLACEHOLDER}
-                              alt={player.name}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = PLAYER_PLACEHOLDER;
-                              }}
-                            />
-                            <div className="absolute top-4 right-4">
-                              <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-lg shadow-lg border-2 border-white">
-                                {player.number}
+                        <Link to={`/player/${player.id}`} className="block h-full">
+                          <Card className="overflow-hidden border-none shadow-lg hover:shadow-2xl transition-all bg-white group h-full rounded-2xl relative">
+                            <div className="absolute inset-0 bg-red-600/0 group-hover:bg-red-600/5 transition-colors z-10 pointer-events-none" />
+                            <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+                              <img
+                                src={player.photo || PLAYER_PLACEHOLDER}
+                                alt={player.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = PLAYER_PLACEHOLDER;
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                <div className="bg-white text-red-600 px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
+                                  View Profile <ExternalLink className="w-3 h-3" />
+                                </div>
                               </div>
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-5">
-                              <div className="flex justify-between items-end mb-2">
-                                <Badge className="bg-red-600 hover:bg-red-600 border-none flex items-center gap-1 w-fit shadow-sm text-[10px] uppercase font-black py-0.5">
-                                  {getPositionIcon(player.position)}
-                                  {player.position}
-                                </Badge>
-                                {player.availability === false && (
-                                  <Badge className="bg-gray-500 hover:bg-gray-500 border-none text-[8px] uppercase font-black">
-                                    Out
+                              <div className="absolute top-4 right-4 z-20">
+                                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-lg shadow-lg border-2 border-white">
+                                  {player.number}
+                                </div>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-5 z-20">
+                                <div className="flex justify-between items-end mb-2">
+                                  <Badge className="bg-red-600 hover:bg-red-600 border-none flex items-center gap-1 w-fit shadow-sm text-[10px] uppercase font-black py-0.5">
+                                    {getPositionIcon(player.position)}
+                                    {player.position}
                                   </Badge>
-                                )}
-                              </div>
-                              <h3 className="text-xl font-bold text-white leading-tight drop-shadow-md">{player.name}</h3>
-                            </div>
-                          </div>
-                          <CardContent className="p-4">
-                            <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                              <div className="bg-gray-50 p-2 rounded-xl">
-                                <div className="text-[8px] text-gray-400 uppercase mb-0.5 tracking-tight">MP</div>
-                                <div className="text-sm font-black text-gray-900">{player.matchesPlayed || 0}</div>
-                              </div>
-                              <div className="bg-gray-50 p-2 rounded-xl">
-                                <div className="text-[8px] text-gray-400 uppercase mb-0.5 tracking-tight">
-                                  {player.position === 'Goalkeeper' ? 'CS' : 'G'}
+                                  {player.availability === false && (
+                                    <Badge className="bg-gray-500 hover:bg-gray-500 border-none text-[8px] uppercase font-black">
+                                      Out
+                                    </Badge>
+                                  )}
                                 </div>
-                                <div className="text-sm font-black text-gray-900">
-                                  {player.position === 'Goalkeeper' ? (player.cleanSheets || 0) : (player.goals || 0)}
-                                </div>
-                              </div>
-                              <div className="bg-red-50 p-2 rounded-xl">
-                                <div className="text-[8px] text-red-400 uppercase mb-0.5 tracking-tight">RAT</div>
-                                <div className="text-sm font-black text-red-600">{player.rating || '0.0'}</div>
+                                <h3 className="text-xl font-bold text-white leading-tight drop-shadow-md">{player.name}</h3>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
+                            <CardContent className="p-4 relative z-20">
+                              <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                                <div className="bg-gray-50 p-2 rounded-xl">
+                                  <div className="text-[8px] text-gray-400 uppercase mb-0.5 tracking-tight">MP</div>
+                                  <div className="text-sm font-black text-gray-900">{player.matchesPlayed || 0}</div>
+                                </div>
+                                <div className="bg-gray-50 p-2 rounded-xl">
+                                  <div className="text-[8px] text-gray-400 uppercase mb-0.5 tracking-tight">
+                                    {player.position === 'Goalkeeper' ? 'CS' : 'G'}
+                                  </div>
+                                  <div className="text-sm font-black text-gray-900">
+                                    {player.position === 'Goalkeeper' ? (player.cleanSheets || 0) : (player.goals || 0)}
+                                  </div>
+                                </div>
+                                <div className="bg-red-50 p-2 rounded-xl">
+                                  <div className="text-[8px] text-red-400 uppercase mb-0.5 tracking-tight">RAT</div>
+                                  <div className="text-sm font-black text-red-600">{Number(player.rating || 0).toFixed(1)}</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
                       </motion.div>
                     ))}
                   </div>

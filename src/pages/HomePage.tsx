@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { NewsModal } from '../components/NewsModal';
 
 const HomePage = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
@@ -19,6 +20,7 @@ const HomePage = () => {
   const [stats, setStats] = useState<any>(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedNews, setSelectedNews] = useState<any | null>(null);
 
   const nextMatch = useMemo(() => {
     return upcomingMatches[0];
@@ -89,7 +91,7 @@ const HomePage = () => {
     };
   }, []);
 
-  const chartData = React.useMemo(() => {
+  const chartData = useMemo(() => {
     return allPastMatches.map(m => {
       const scores = m.score?.split('-').map(Number) || [0, 0];
       return {
@@ -99,6 +101,18 @@ const HomePage = () => {
         opponent: m.opponent
       };
     }).slice(-8); // Last 8 matches
+  }, [allPastMatches]);
+
+  const lastFiveMatchesData = useMemo(() => {
+    return allPastMatches.slice(-5).map(m => {
+      const scores = m.score?.split('-').map(Number) || [0, 0];
+      return {
+        opponent: m.opponent,
+        scored: scores[0],
+        conceded: scores[1],
+        date: format(m.date, 'MMM dd')
+      };
+    });
   }, [allPastMatches]);
 
   return (
@@ -462,6 +476,91 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Recent Performance Trend */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Recent Form Guide</h3>
+                <p className="text-sm text-gray-500">Goals scored vs conceded in the last 5 matches</p>
+              </div>
+              <div className="flex gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-600">Scored</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-rose-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-600">Conceded</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-[200px] w-full">
+              {lastFiveMatchesData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={lastFiveMatchesData} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorScoredTrend" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorConcededTrend" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="opponent" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#9ca3af', fontSize: 10 }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      hide
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="scored" 
+                      stroke="#10b981" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorScoredTrend)" 
+                      name="Scored"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="conceded" 
+                      stroke="#f43f5e" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorConcededTrend)" 
+                      name="Conceded"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm italic">
+                  Data will appear once match results are recorded.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* News Preview */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
@@ -494,10 +593,18 @@ const HomePage = () => {
                   </h3>
                   <p className="text-gray-600 text-sm mb-4 line-clamp-3">
                     {item.content}
-                  </p>
-                  <Link to="/news" className="text-gray-900 font-bold text-sm flex items-center gap-2 hover:text-red-600 transition-colors">
-                    Read More <ArrowRight className="w-4 h-4" />
-                  </Link>
+                   </p>
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => setSelectedNews(item)}
+                      className="text-gray-900 font-bold text-sm flex items-center gap-2 hover:text-red-600 transition-colors"
+                    >
+                      Read Now <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <Link to="/news" className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600">
+                      View All
+                    </Link>
+                  </div>
                 </div>
               </motion.div>
             )) : (
@@ -528,6 +635,8 @@ const HomePage = () => {
           </Link>
         </div>
       </section>
+
+      <NewsModal item={selectedNews} onClose={() => setSelectedNews(null)} />
     </div>
   );
 };

@@ -39,6 +39,7 @@ import GalleryPage from './pages/GalleryPage';
 import NewsPage from './pages/NewsPage';
 import DonationsPage from './pages/DonationsPage';
 import AdminPage from './pages/AdminPage';
+import PlayerProfilePage from './pages/PlayerProfilePage';
 
 const TopBar = ({ social }: { social: any }) => (
   <div className="bg-slate-900 text-white py-2 hidden sm:block">
@@ -477,6 +478,7 @@ export default function App() {
               <Route path="/news" element={<PageWrapper><NewsPage /></PageWrapper>} />
               <Route path="/donate" element={<PageWrapper><DonationsPage /></PageWrapper>} />
               <Route path="/admin" element={<PageWrapper><AdminPage user={user} role={role} /></PageWrapper>} />
+              <Route path="/player/:id" element={<PageWrapper><PlayerProfilePage /></PageWrapper>} />
             </Routes>
           </AnimatePresence>
         </main>

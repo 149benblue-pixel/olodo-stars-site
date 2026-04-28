@@ -13,9 +13,25 @@
         "matchesPlayed": { "type": "number" },
         "goals": { "type": "number" },
         "assists": { "type": "number" },
-        "rating": { "type": "number" }
+        "rating": { "type": "number" },
+        "bio": { "type": "string" },
+        "origin": { "type": "string" },
+        "joinedDate": { "type": "string", "format": "date-time" },
+        "commitmentCount": { "type": "number" }
       },
       "required": ["name", "number", "position"]
+    },
+    "Opinion": {
+      "title": "Opinion",
+      "description": "A fan opinion about a player",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "author": { "type": "string" },
+        "text": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["author", "text", "date"]
     },
     "Official": {
       "title": "Official",
@@ -105,6 +121,10 @@
     "/players/{playerId}": {
       "schema": "Player",
       "description": "Collection of players"
+    },
+    "/players/{playerId}/opinions/{opinionId}": {
+      "schema": "Opinion",
+      "description": "Subcollection of fan opinions for a player"
     },
     "/officials/{officialId}": {
       "schema": "Official",

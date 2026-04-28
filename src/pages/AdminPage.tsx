@@ -459,7 +459,7 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
 
 // Sub-components for Admin Panel
 
-const PLAYER_PLACEHOLDER = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=400&h=533";
+const PLAYER_PLACEHOLDER = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 const OFFICIAL_PLACEHOLDER = "https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=200&h=200";
 
 const DeleteConfirmDialog = ({ 
@@ -515,7 +515,11 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
     assists: '0',
     cleanSheets: '0',
     rating: '0.0',
-    availability: true
+    availability: true,
+    bio: '',
+    origin: '',
+    joinedDate: format(new Date(), 'yyyy-MM-dd'),
+    commitmentCount: 0
   });
 
   const handleEdit = (player: any) => {
@@ -534,7 +538,11 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
       assists: player.assists.toString(),
       cleanSheets: (player.cleanSheets || 0).toString(),
       rating: player.rating.toString(),
-      availability: player.availability !== undefined ? player.availability : true
+      availability: player.availability !== undefined ? player.availability : true,
+      bio: player.bio || '',
+      origin: player.origin || '',
+      joinedDate: player.joinedDate ? (player.joinedDate instanceof Date ? format(player.joinedDate, 'yyyy-MM-dd') : format(player.joinedDate.toDate(), 'yyyy-MM-dd')) : format(new Date(), 'yyyy-MM-dd'),
+      commitmentCount: player.commitmentCount || 0
     });
     setIsAdding(true);
   };
@@ -595,7 +603,9 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
         goals: Number(formData.goals),
         assists: Number(formData.assists),
         cleanSheets: Number(formData.cleanSheets),
-        rating: Number(formData.rating)
+        rating: Number(formData.rating),
+        joinedDate: new Date(formData.joinedDate),
+        commitmentCount: Number(formData.commitmentCount)
       };
 
       if (editingId) {
@@ -618,7 +628,11 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
         assists: '0', 
         cleanSheets: '0', 
         rating: '0.0', 
-        availability: true
+        availability: true,
+        bio: '',
+        origin: '',
+        joinedDate: format(new Date(), 'yyyy-MM-dd'),
+        commitmentCount: 0
       });
     } catch (error) {
       toast.error(editingId ? 'Error updating player' : 'Error adding player');
@@ -765,6 +779,27 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
                   <SelectItem value="false">Unavailable</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Origin / Hometown</label>
+              <Input value={formData.origin} onChange={e => setFormData({...formData, origin: e.target.value})} placeholder="e.g. Nairobi, Kenya" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Joined Date</label>
+              <Input type="date" value={formData.joinedDate} onChange={e => setFormData({...formData, joinedDate: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Commitment Count</label>
+              <Input type="number" value={formData.commitmentCount.toString()} onChange={e => setFormData({...formData, commitmentCount: Number(e.target.value)})} disabled={!isSuperAdmin} />
+            </div>
+            <div className="md:col-span-2 lg:col-span-4 space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Player Bio</label>
+              <Textarea 
+                value={formData.bio} 
+                onChange={e => setFormData({...formData, bio: e.target.value})} 
+                placeholder="Write a short player biography..."
+                className="h-24 rounded-xl"
+              />
             </div>
             <div className="md:col-span-2 lg:col-span-4">
               <Button type="submit" disabled={uploading} className="w-full bg-red-600 hover:bg-red-700">

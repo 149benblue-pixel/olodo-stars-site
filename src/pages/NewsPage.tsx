@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { NewsModal } from '../components/NewsModal';
 
 interface NewsItem {
   id: string;
@@ -25,6 +26,7 @@ const NewsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -143,7 +145,10 @@ const NewsPage = () => {
                   <p className="text-gray-600 mb-6 line-clamp-4 flex-grow">
                     {item.content}
                   </p>
-                  <button className="flex items-center gap-2 text-red-600 font-bold hover:gap-3 transition-all">
+                  <button 
+                    onClick={() => setSelectedNews(item)}
+                    className="flex items-center gap-2 text-red-600 font-bold hover:gap-3 transition-all"
+                  >
                     Read Full Story <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
@@ -200,6 +205,8 @@ const NewsPage = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        <NewsModal item={selectedNews} onClose={() => setSelectedNews(null)} />
       </div>
     </div>
   );

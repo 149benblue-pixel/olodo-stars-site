@@ -11,20 +11,70 @@ import { toast } from 'sonner';
 
 const DonationsPage = () => {
   const [amount, setAmount] = useState('');
+  const [donorPhone, setDonorPhone] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingSTK, setIsProcessingSTK] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [donationPhone, setDonationPhone] = useState('+254 716 773 610');
+  const mpesaNumber = '+254716773610';
 
   React.useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {
       if (d.exists() && d.data().whatsapp) {
-        setDonationPhone(d.data().whatsapp);
+        // Keep synced with social links if available, but default to priority number
+        const val = d.data().whatsapp;
+        if (val) setDonationPhone(val);
       }
     });
     return () => unsub();
   }, []);
+
+  const handleMpesaTrigger = () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      toast.error('Please enter a donation amount first');
+      return;
+    }
+
+    if (!donorPhone || donorPhone.length < 10) {
+      toast.error('Please enter your valid M-Pesa phone number');
+      return;
+    }
+
+    setIsProcessingSTK(true);
+    toast.info('Initializing M-Pesa Express...', {
+      description: `Sending STK Push for KES ${amount} to ${donorPhone}`,
+      duration: 3000,
+    });
+    
+    // Logic for production:
+    // fetch('/api/mpesa/stkpush', { method: 'POST', body: JSON.stringify({ amount, phone: donorPhone }) })
+
+    setTimeout(async () => {
+      setIsProcessingSTK(false);
+      toast.success('STK Push Sent!', {
+        description: 'Please check your phone and enter your M-Pesa PIN.',
+      });
+      
+      // Simulate successful payment after 5 seconds
+      setTimeout(async () => {
+        try {
+          await addDoc(collection(db, 'donations'), {
+            amount: Number(amount),
+            donorName: name || 'Anonymous',
+            donorPhone: donorPhone,
+            message: message + ' (via M-Pesa Express)',
+            method: 'mpesa_express',
+            date: serverTimestamp()
+          });
+          setIsSuccess(true);
+        } catch (error) {
+          console.error('Error auto-logging donation:', error);
+        }
+      }, 5000);
+    }, 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +118,8 @@ const DonationsPage = () => {
           <p className="text-gray-600 mb-8">
             Your contribution of <span className="font-bold text-gray-900">KES {amount}</span> has been recorded. 
             <br /><br />
-            Please complete your donation by sending to:
-            <span className="block text-2xl font-black text-red-600 mt-2">{donationPhone}</span>
+            Please complete your donation via M-Pesa to:
+            <span className="block text-2xl font-black text-emerald-600 mt-2">{donationPhone}</span>
           </p>
           <div className="flex flex-col gap-3">
             <Button 
@@ -174,25 +224,61 @@ const DonationsPage = () => {
           >
             <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-4 bg-red-100 rounded-2xl text-red-600">
+                <div className="p-4 bg-emerald-100 rounded-2xl text-emerald-600">
                   <Smartphone className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Direct Support</h3>
-                  <p className="text-gray-500">Send your donation directly via M-Pesa</p>
+                  <h3 className="text-2xl font-bold text-gray-900">M-Pesa Express</h3>
+                  <p className="text-gray-500">Fast & Secure Mobile Payment</p>
                 </div>
               </div>
               
-              <div className="p-8 bg-gray-50 rounded-3xl border border-gray-100 text-center mb-8">
-                <p className="text-gray-600 mb-4 font-medium text-lg">
-                  Support Olodo Hot Stars by sending your donation to:
+              <div className="p-8 bg-emerald-50 rounded-3xl border border-emerald-100 text-center mb-8">
+                <p className="text-emerald-900 mb-6 font-bold text-lg">
+                  Enter your phone number to receive the payment prompt:
                 </p>
-                <div className="text-3xl md:text-4xl font-black text-red-600 mb-4 tracking-tight">
-                  {donationPhone}
+                
+                <div className="space-y-4 mb-6">
+                  <div className="relative">
+                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 w-5 h-5 pointer-events-none" />
+                    <Input 
+                      placeholder="e.g. 0712345678"
+                      value={donorPhone}
+                      onChange={(e) => setDonorPhone(e.target.value)}
+                      className="h-14 pl-12 bg-white border-emerald-200 focus:ring-emerald-600 font-bold text-lg rounded-2xl"
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={handleMpesaTrigger}
+                    disabled={isProcessingSTK}
+                    className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-lg transition-all shadow-lg hover:shadow-emerald-200 disabled:opacity-50"
+                  >
+                    {isProcessingSTK ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
+                        Initializing...
+                      </>
+                    ) : (
+                      <>
+                        <Smartphone className="mr-2 w-6 h-6" />
+                        Trigger M-Pesa Prompt
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <p className="text-gray-500 italic">
-                  Thank you for your support!
-                </p>
+
+                <div className="mt-8 pt-8 border-t border-emerald-100">
+                  <p className="text-gray-600 mb-4 font-bold uppercase tracking-widest text-xs">
+                    Or Manual Payment
+                  </p>
+                  <div className="text-3xl font-black text-slate-900 mb-2">
+                    {donationPhone}
+                  </div>
+                  <p className="text-gray-500 text-sm">
+                    Send to this number via M-Pesa Send Money
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp, Bell, BellRing } from 'lucide-react';
+import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp, Bell, BellRing, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { format, differenceInDays, differenceInHours, differenceInMinutes, diffe
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { Link } from 'react-router-dom';
 
 interface Match {
   id: string;
@@ -35,9 +36,21 @@ interface TeamStats {
   averageRating: number;
 }
 
+interface Player {
+  id: string;
+  name: string;
+  number: number;
+  position: string;
+  goals: number;
+  cleanSheets?: number;
+  photo?: string;
+}
+
 const PerformancePage = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<TeamStats | null>(null);
+  const [topScorers, setTopScorers] = useState<Player[]>([]);
+  const [topGoalkeepers, setTopGoalkeepers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
@@ -56,24 +69,33 @@ const PerformancePage = () => {
       if (docSnap.exists()) {
         setStats(docSnap.data() as TeamStats);
       } else {
-        // Default stats if not found
         setStats({
-          totalMatches: 0,
-          wins: 0,
-          draws: 0,
-          losses: 0,
-          goalsScored: 0,
-          goalsConceded: 0,
-          cleanSheets: 0,
-          averageRating: 0
+          totalMatches: 0, wins: 0, draws: 0, losses: 0,
+          goalsScored: 0, goalsConceded: 0, cleanSheets: 0, averageRating: 0
         });
       }
-      setLoading(false);
     });
+
+    // Fetch Top Scorers
+    const playersQuery = query(collection(db, 'players'), orderBy('goals', 'desc'), limit(5));
+    const unsubPlayers = onSnapshot(playersQuery, (snapshot) => {
+      setTopScorers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
+    });
+
+    // Fetch Top Goalkeepers (clean sheets sorting is handled by index, if CleanSheets exists)
+    const gkQuery = query(collection(db, 'players'), orderBy('cleanSheets', 'desc'), limit(3));
+    const unsubGK = onSnapshot(gkQuery, (snapshot) => {
+      const gks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+      setTopGoalkeepers(gks);
+    });
+
+    setLoading(false);
 
     return () => {
       unsubMatches();
       unsubStats();
+      unsubPlayers();
+      unsubGK();
     };
   }, []);
 
@@ -340,6 +362,121 @@ const PerformancePage = () => {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Rankings Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+          {/* Top Scorers Ranking */}
+          <Card className="border-none shadow-lg bg-white overflow-hidden">
+            <CardHeader className="bg-slate-900 text-white p-6">
+              <div className="flex items-center gap-3">
+                <Target className="w-6 h-6 text-red-500" />
+                <CardTitle className="text-xl font-black uppercase tracking-widest">Top Goal Scorers</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-gray-100">
+                {topScorers.length > 0 ? topScorers.map((player, index) => (
+                  <motion.div 
+                    key={player.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Link to={`/player/${player.id}`} className="flex items-center justify-between p-5 hover:bg-gray-50 transition-colors group">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${
+                          index === 0 ? 'bg-yellow-400 text-white' : 
+                          index === 1 ? 'bg-gray-300 text-white' : 
+                          index === 2 ? 'bg-amber-600 text-white' : 'text-gray-400'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm ring-1 ring-gray-100">
+                          {player.photo ? (
+                            <img src={player.photo} alt={player.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                              <User className="w-6 h-6" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-black text-gray-900 group-hover:text-red-600 transition-colors uppercase tracking-tight">
+                            {player.name}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            #{player.number} • {player.position}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-black text-gray-900 leading-none">{player.goals}</div>
+                        <div className="text-[10px] font-black uppercase text-red-500 tracking-widest mt-1">Goals</div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )) : (
+                  <div className="p-12 text-center text-gray-400 italic">No scorers data found.</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Golden Glove Ranking */}
+          <Card className="border-none shadow-lg bg-white overflow-hidden">
+            <CardHeader className="bg-slate-800 text-white p-6">
+              <div className="flex items-center gap-3">
+                <Shield className="w-6 h-6 text-blue-400" />
+                <CardTitle className="text-xl font-black uppercase tracking-widest">Golden Glove</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-gray-100">
+                {topGoalkeepers.length > 0 ? topGoalkeepers.map((player, index) => (
+                  <motion.div 
+                    key={player.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Link to={`/player/${player.id}`} className="flex items-center justify-between p-5 hover:bg-gray-50 transition-colors group">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm border-2 ${
+                          index === 0 ? 'bg-blue-600 text-white border-blue-400' : 'text-gray-400 border-transparent'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm ring-1 ring-gray-100">
+                          {player.photo ? (
+                            <img src={player.photo} alt={player.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                              <User className="w-6 h-6" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
+                            {player.name}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            GK • #{player.number}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-black text-gray-900 leading-none">{player.cleanSheets || 0}</div>
+                        <div className="text-[10px] font-black uppercase text-blue-500 tracking-widest mt-1">Clean Sheets</div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )) : (
+                  <div className="p-12 text-center text-gray-400 italic">No goalkeeping data found.</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Upcoming Matches */}

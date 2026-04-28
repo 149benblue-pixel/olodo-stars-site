@@ -83,7 +83,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   </motion.div>
 );
 
-const Navbar = ({ user }: { user: User | null }) => {
+const Navbar = ({ user, role }: { user: User | null, role: string | null }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
@@ -103,7 +103,7 @@ const Navbar = ({ user }: { user: User | null }) => {
     { name: 'Donate', path: '/donate', icon: Heart },
   ];
 
-  const isAdmin = user?.email === '149benblue@gmail.com';
+  const isEditor = role === 'editor' || role === 'super_admin' || user?.email === '149benblue@gmail.com';
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -149,7 +149,7 @@ const Navbar = ({ user }: { user: User | null }) => {
             
             <div className="h-6 w-[1px] bg-slate-200 mx-4" />
 
-            {isAdmin && (
+            {isEditor && (
               <Link
                 to="/admin"
                 className={`p-2 rounded-xl transition-all ${
@@ -222,7 +222,7 @@ const Navbar = ({ user }: { user: User | null }) => {
                   <ArrowRight className="w-4 h-4 opacity-30" />
                 </Link>
               ))}
-              {isAdmin && (
+              {isEditor && (
                 <Link
                   to="/admin"
                   onClick={() => setIsOpen(false)}
@@ -386,7 +386,7 @@ const Footer = ({ social }: { social: any }) => {
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<'super_admin' | 'editor' | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -465,7 +465,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
         <TopBar social={socialLinks} />
-        <Navbar user={user} />
+        <Navbar user={user} role={role} />
         <main className="flex-grow pt-16 md:pt-20">
           <AnimatePresence mode="wait">
             <Routes>

@@ -366,23 +366,23 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="players">
-            <PlayerManager players={players} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <PlayerManager players={players} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           <TabsContent value="officials">
-            <OfficialManager officials={officials} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <OfficialManager officials={officials} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           <TabsContent value="matches">
-            <MatchManager matches={matches} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <MatchManager matches={matches} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           <TabsContent value="news">
-            <NewsManager news={news} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <NewsManager news={news} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           <TabsContent value="gallery">
-            <GalleryManager items={gallery} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <GalleryManager items={gallery} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           {isSuperAdmin && (
@@ -398,7 +398,7 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
           )}
 
           <TabsContent value="supabase-media">
-            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} onRefresh={() => {
+            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} onRefresh={() => {
               // Trigger a re-fetch manually if needed
               if (supabase) {
                 supabase.from('club_media').select('*').order('created_at', { ascending: false }).then(({ data }) => {
@@ -409,7 +409,7 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
           </TabsContent>
 
           <TabsContent value="settings">
-            <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} />
+            <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
           <TabsContent value="database">
@@ -463,7 +463,7 @@ const DeleteConfirmDialog = ({
   );
 };
 
-const PlayerManager = ({ players, isVerified, isSuperAdmin }: { players: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
+const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { players: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -612,7 +612,7 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin }: { players: any[], 
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Squad</h2>
-        {isSuperAdmin && (
+        {isEditor && (
           <Button onClick={() => {
             if (!isVerified) {
               toast.error('Email verification required');
@@ -801,7 +801,7 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin }: { players: any[], 
   );
 };
 
-const OfficialManager = ({ officials, isVerified, isSuperAdmin }: { officials: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
+const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { officials: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -916,17 +916,19 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin }: { officials: a
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Officials</h2>
-        <Button onClick={() => {
-          if (!isVerified) {
-            toast.error('Email verification required');
-            return;
-          }
-          setIsAdding(!isAdding);
-          if (isAdding) setEditingId(null);
-        }} className="bg-red-600 hover:bg-red-700 rounded-full">
-          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          {isAdding ? 'Cancel' : 'Add Official'}
-        </Button>
+        {isEditor && (
+          <Button onClick={() => {
+            if (!isVerified) {
+              toast.error('Email verification required');
+              return;
+            }
+            setIsAdding(!isAdding);
+            if (isAdding) setEditingId(null);
+          }} className="bg-red-600 hover:bg-red-700 rounded-full">
+            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isAdding ? 'Cancel' : 'Add Official'}
+          </Button>
+        )}
       </div>
 
 
@@ -1043,7 +1045,7 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin }: { officials: a
   );
 };
 
-const MatchManager = ({ matches, isVerified, isSuperAdmin }: { matches: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
+const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1149,7 +1151,7 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin }: { matches: any[], i
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Manage Matches</h2>
         <div className="flex flex-wrap gap-2">
-          {isSuperAdmin && (
+          {isEditor && (
             <>
               <Button onClick={handleAddNext} className="bg-blue-600 hover:bg-blue-700 rounded-full text-xs sm:text-sm">
                 <Plus className="w-4 h-4 mr-2" /> Next Match
@@ -1324,7 +1326,7 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin }: { matches: any[], i
   );
 };
 
-const NewsManager = ({ news, isVerified, isSuperAdmin }: { news: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
+const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1454,7 +1456,7 @@ const NewsManager = ({ news, isVerified, isSuperAdmin }: { news: any[], isVerifi
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage News</h2>
-        {isSuperAdmin && (
+        {isEditor && (
           <Button onClick={() => {
             if (!isVerified) {
               toast.error('Email verification required');
@@ -1571,7 +1573,7 @@ const NewsManager = ({ news, isVerified, isSuperAdmin }: { news: any[], isVerifi
   );
 };
 
-const GalleryManager = ({ items, isVerified, isSuperAdmin }: { items: any[], isVerified: boolean, isSuperAdmin: boolean }) => {
+const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1689,7 +1691,7 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin }: { items: any[], isV
       />
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manage Gallery</h2>
-        {isSuperAdmin && (
+        {isEditor && (
           <Button onClick={() => {
             if (!isVerified) {
               toast.error('Email verification required');
@@ -1814,7 +1816,7 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
   );
 };
 
-const SettingsManager = ({ stats, social, isVerified, isSuperAdmin }: { stats: any, social: any, isVerified: boolean, isSuperAdmin: boolean }) => {
+const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: { stats: any, social: any, isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [formData, setFormData] = useState({
     wins: '0',
     draws: '0',
@@ -2024,7 +2026,7 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin }: { stats: a
   );
 };
 
-const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin }: { items: any[], onRefresh: () => void, isVerified: boolean, isSuperAdmin: boolean }) => {
+const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin, isEditor }: { items: any[], onRefresh: () => void, isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -2118,7 +2120,7 @@ const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin }: { 
           <h2 className="text-2xl font-bold text-gray-900">Supabase Media Cloud</h2>
           <p className="text-xs text-gray-500 font-medium">Assets stored in Supabase PostgreSQL & Storage</p>
         </div>
-        {isSuperAdmin && (
+        {isEditor && (
           <Button 
             onClick={() => setIsAdding(!isAdding)} 
             className={`${isAdding ? 'bg-gray-100 text-gray-900' : 'bg-emerald-600 text-white hover:bg-emerald-700'} rounded-2xl h-11 px-6 font-bold transition-all`}

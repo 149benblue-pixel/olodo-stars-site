@@ -78,18 +78,24 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
+    // Safe getRole helper that handles non-existent documents
+    function getRoleSafe() {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data.role : null;
+    }
+
     function isSuperAdmin() {
       return isAuthenticated() &&
-        (getRole() == 'super_admin' || 
+        (getRoleSafe() == 'super_admin' || 
          (request.auth.token.email == "149benblue@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isEditor() {
+      return isAuthenticated() && (getRoleSafe() == 'editor' || isSuperAdmin());
     }
 
     function isAdmin() {
       return isSuperAdmin();
-    }
-
-    function isEditor() {
-      return isAuthenticated() && (getRole() == 'editor' || isSuperAdmin());
     }
 
     function isValidUrl(url) {
@@ -102,7 +108,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow write: if isSuperAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId && 
+                    request.resource.data.role == 'viewer';
+      allow update, delete: if isSuperAdmin();
     }
 
     match /players/{playerId} {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { collection, onSnapshot, query, orderBy, doc, getDoc, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, limit, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trophy, Calendar, MapPin, Clock, ArrowRight, Target, Shield, Zap, Play, X as CloseIcon, BarChart3, TrendingUp, Bell, BellRing, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +43,7 @@ interface Player {
   position: string;
   goals: number;
   cleanSheets?: number;
+  matchesPlayed: number;
   photo?: string;
 }
 
@@ -83,10 +84,26 @@ const PerformancePage = () => {
     });
 
     // Fetch Top Goalkeepers (clean sheets sorting is handled by index, if CleanSheets exists)
-    const gkQuery = query(collection(db, 'players'), orderBy('cleanSheets', 'desc'), limit(3));
+    const gkQuery = query(
+      collection(db, 'players'), 
+      where('position', '==', 'Goalkeeper'),
+      orderBy('cleanSheets', 'desc'), 
+      limit(5)
+    );
     const unsubGK = onSnapshot(gkQuery, (snapshot) => {
       const gks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
       setTopGoalkeepers(gks);
+    }, (error) => {
+      console.error("GK Query Error:", error);
+      // Fallback: fetch all and filter in memory if index is missing
+      const fallbackQuery = query(collection(db, 'players'), orderBy('cleanSheets', 'desc'));
+      onSnapshot(fallbackQuery, (snapshot) => {
+        const allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+        const filteredGks = allPlayers
+          .filter(p => p.position === 'Goalkeeper')
+          .slice(0, 5);
+        setTopGoalkeepers(filteredGks);
+      });
     });
 
     setLoading(false);
@@ -464,9 +481,15 @@ const PerformancePage = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-black text-gray-900 leading-none">{player.cleanSheets || 0}</div>
-                        <div className="text-[10px] font-black uppercase text-blue-500 tracking-widest mt-1">Clean Sheets</div>
+                      <div className="text-right flex items-center gap-6">
+                        <div className="text-right">
+                          <div className="text-xl font-black text-gray-900 leading-none">{player.matchesPlayed || 0}</div>
+                          <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Played</div>
+                        </div>
+                        <div className="text-right min-w-[60px]">
+                          <div className="text-2xl font-black text-blue-600 leading-none">{player.cleanSheets || 0}</div>
+                          <div className="text-[10px] font-black uppercase text-blue-500 tracking-widest mt-1">CS</div>
+                        </div>
                       </div>
                     </Link>
                   </motion.div>

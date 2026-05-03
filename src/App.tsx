@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { auth, signInWithGoogle, logout, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Toaster } from 'sonner';
 
 // Pages (to be implemented)
@@ -395,7 +395,6 @@ export default function App() {
     let unsubRole: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      // Clean up previous role listener if it exists
       if (unsubRole) {
         unsubRole();
         unsubRole = null;
@@ -403,41 +402,56 @@ export default function App() {
 
       setUser(u);
       if (u) {
-        // Fallback for primary admin
         if (u.email === '149benblue@gmail.com') {
           setRole('super_admin');
         }
 
-        // Ensure user document exists in Firestore for admin to manage
         try {
           const userDocRef = doc(db, 'users', u.uid);
           const userDoc = await getDoc(userDocRef);
+          
           if (!userDoc.exists()) {
+            // Check for pre-authorized role by email
+            // We search for a document where email matches and isPreAuthorized is true
+            // Since we can't query reliably here without complex setup, 
+            // the admin logic should ideally use email as ID for pre-auth docs.
+            const preAuthId = `pre_${u.email?.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const preAuthRef = doc(db, 'users', preAuthId);
+            const preAuthDoc = await getDoc(preAuthRef);
+            
+            let initialRole = 'viewer';
+            if (preAuthDoc.exists()) {
+              initialRole = preAuthDoc.data().role || 'viewer';
+              // Delete the pre-auth doc after migrating
+              await deleteDoc(preAuthRef);
+            } else if (u.email === '149benblue@gmail.com') {
+              initialRole = 'super_admin';
+            }
+
             await setDoc(userDocRef, {
               email: u.email,
-              role: u.email === '149benblue@gmail.com' ? 'super_admin' : 'viewer',
-              createdAt: serverTimestamp()
+              role: initialRole,
+              createdAt: serverTimestamp(),
+              displayName: u.displayName
             });
           } else if (u.email === '149benblue@gmail.com' && userDoc.data().role !== 'super_admin') {
-             // Ensure the hardcoded admin always has the role in DB
              await updateDoc(userDocRef, { role: 'super_admin' });
           }
         } catch (err) {
           console.error("Error checking/creating user doc:", err);
         }
         
-        // Listen to role changes in Firestore
         unsubRole = onSnapshot(doc(db, 'users', u.uid), (d) => {
           if (d.exists()) {
             setRole(d.data().role);
           } else if (u.email !== '149benblue@gmail.com') {
             setRole(null);
           }
-          setLoading(false); // Move loading to here for authenticated users
+          setLoading(false);
         });
       } else {
         setRole(null);
-        setLoading(false); // Loading is done if no user
+        setLoading(false);
       }
     });
 

@@ -48,10 +48,12 @@ import {
   BarChart3,
   Image as ImageIcon,
   Check,
-  Upload,
+  Search,
+  Zap,
   Loader2,
-  Mail,
-  Zap
+  PlusCircle,
+  Upload,
+  Mail
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -321,45 +323,50 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white border border-gray-200 p-0.5 rounded-lg shadow-sm mb-8 flex flex-wrap h-auto gap-1">
-            <TabsTrigger value="dashboard" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <LayoutDashboard className="w-3 h-3" /> Dash
-            </TabsTrigger>
-            <TabsTrigger value="players" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> Squad
-            </TabsTrigger>
-            <TabsTrigger value="officials" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Shield className="w-3 h-3" /> Staff
-            </TabsTrigger>
-            <TabsTrigger value="matches" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Trophy className="w-3 h-3" /> Games
-            </TabsTrigger>
-            <TabsTrigger value="news" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Newspaper className="w-3 h-3" /> News
-            </TabsTrigger>
-            <TabsTrigger value="gallery" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <ImageIcon className="w-3 h-3" /> Media
-            </TabsTrigger>
-            {isSuperAdmin && (
-              <TabsTrigger value="donations" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-                <Heart className="w-3 h-3" /> Gifts
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="supabase-media" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <Zap className="w-3 h-3" /> Supa Media
-            </TabsTrigger>
-            {isSuperAdmin && (
-              <TabsTrigger value="roles" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-                <Shield className="w-3 h-3" /> Access
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="settings" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <SettingsIcon className="w-3 h-3" /> Setup
-            </TabsTrigger>
-            <TabsTrigger value="database" className="rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-1.5">
-              <BarChart3 className="w-3 h-3" /> Status
-            </TabsTrigger>
-          </TabsList>
+          <div className="sticky top-0 z-40 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 -mx-4 px-4 py-4 mb-8">
+            <div className="max-w-7xl mx-auto">
+              <TabsList className="bg-white/50 p-1 rounded-xl shadow-sm flex flex-wrap h-auto gap-1 border border-gray-100">
+                <TabsTrigger value="dashboard" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <LayoutDashboard className="w-3.5 h-3.5" /> Dash
+                </TabsTrigger>
+                <TabsTrigger value="players" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <Users className="w-3.5 h-3.5" /> Squad
+                </TabsTrigger>
+                <TabsTrigger value="officials" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <Shield className="w-3.5 h-3.5" /> Staff
+                </TabsTrigger>
+                <TabsTrigger value="matches" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <Trophy className="w-3.5 h-3.5" /> Games
+                </TabsTrigger>
+                <TabsTrigger value="match-report" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <BarChart3 className="w-3.5 h-3.5" /> Report
+                </TabsTrigger>
+                <TabsTrigger value="news" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <Newspaper className="w-3.5 h-3.5" /> News
+                </TabsTrigger>
+                <TabsTrigger value="gallery" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <ImageIcon className="w-3.5 h-3.5" /> Media
+                </TabsTrigger>
+                {isSuperAdmin && (
+                  <TabsTrigger value="donations" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                    <Heart className="w-3.5 h-3.5" /> Gifts
+                  </TabsTrigger>
+                )}
+                {isSuperAdmin && (
+                  <TabsTrigger value="roles" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                    <Shield className="w-3.5 h-3.5" /> Access
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="settings" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <SettingsIcon className="w-3.5 h-3.5" /> Config
+                </TabsTrigger>
+                <TabsTrigger value="database" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <BarChart3 className="w-3.5 h-3.5" /> Health
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
+
 
           <TabsContent value="dashboard">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -411,6 +418,10 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
 
           <TabsContent value="matches">
             <MatchManager matches={matches} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
+          </TabsContent>
+
+          <TabsContent value="match-report">
+            <MatchReportManager players={players} matches={matches} isVerified={isVerified || false} />
           </TabsContent>
 
           <TabsContent value="news">
@@ -1397,6 +1408,274 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
   );
 };
 
+const MatchReportManager = ({ players, matches, isVerified }: { players: any[], matches: any[], isVerified: boolean }) => {
+  const [selectedMatchId, setSelectedMatchId] = useState<string>('');
+  const [reportData, setReportData] = useState<{[key: string]: { 
+    isPresent: boolean, 
+    goals: number, 
+    assists: number, 
+    conceded: number
+  }}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Initialize report data
+  useEffect(() => {
+    const initialData: any = {};
+    players.forEach(p => {
+      initialData[p.id] = {
+        isPresent: false,
+        goals: 0,
+        assists: 0,
+        conceded: 0
+      };
+    });
+    setReportData(initialData);
+  }, [players]);
+
+  const updatePlayerStat = (playerId: string, field: string, value: any) => {
+    setReportData(prev => ({
+      ...prev,
+      [playerId]: {
+        ...prev[playerId],
+        [field]: value
+      }
+    }));
+  };
+
+  const selectedMatch = matches.find(m => m.id === selectedMatchId);
+  const filteredPlayers = players.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.number.toString().includes(searchTerm)
+  );
+
+  const handleSubmitReport = async () => {
+    if (!selectedMatchId) {
+      toast.error('Please select a match first');
+      return;
+    }
+    if (!isVerified) {
+      toast.error('Verification required to sync stats');
+      return;
+    }
+
+    const presentPlayers = Object.keys(reportData).filter(id => reportData[id].isPresent);
+    if (presentPlayers.length === 0) {
+      toast.error('No players marked as present');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updates = [];
+      for (const playerId of presentPlayers) {
+        const stats = reportData[playerId];
+        const playerRef = doc(db, 'players', playerId);
+        const currentPlayer = players.find(p => p.id === playerId);
+        
+        if (currentPlayer) {
+          const newMatchesPlayed = (Number(currentPlayer.matchesPlayed) || 0) + 1;
+          const newGoals = (Number(currentPlayer.goals) || 0) + Number(stats.goals);
+          const newAssists = (Number(currentPlayer.assists) || 0) + Number(stats.assists);
+          let newCleanSheets = (Number(currentPlayer.cleanSheets) || 0);
+          
+          if (currentPlayer.position === 'Goalkeeper' && Number(stats.conceded) === 0) {
+            newCleanSheets += 1;
+          }
+
+          updates.push(updateDoc(playerRef, {
+            matchesPlayed: newMatchesPlayed,
+            goals: newGoals,
+            assists: newAssists,
+            cleanSheets: newCleanSheets
+          }));
+        }
+      }
+
+      await Promise.all(updates);
+      
+      // Update match to mark it as recapped
+      await updateDoc(doc(db, 'matches', selectedMatchId), {
+        statsSyncDone: true,
+        statsSyncDate: serverTimestamp()
+      });
+
+      toast.success(`Report synced! Updated stats for ${presentPlayers.length} players.`);
+      setSelectedMatchId('');
+    } catch (error) {
+      console.error(error);
+      toast.error('Error updating stats');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Match Statistics Sync</h2>
+          <p className="text-gray-500 text-sm max-w-xl">Update player stats based on match performance. This updates lifecycle totals automatically across the entire platform.</p>
+        </div>
+        
+        {selectedMatchId && (
+          <div className="flex items-center gap-4 animate-in slide-in-from-right-4">
+            <div className="text-right hidden sm:block">
+              <div className="text-[10px] font-black text-red-600 uppercase tracking-widest">Active Match</div>
+              <div className="font-bold text-gray-900">{selectedMatch?.opponent}</div>
+            </div>
+            <Button 
+              onClick={handleSubmitReport}
+              disabled={isSubmitting}
+              className="bg-gray-900 hover:bg-black text-white h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-gray-200"
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Commit Performance Updates'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-8">
+        {/* Selection Strip */}
+        <Card className="border-none shadow-sm bg-white overflow-hidden">
+          <CardContent className="p-4 flex flex-col md:flex-row items-center gap-6">
+            <div className="w-full md:w-80">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">1. Select Target Match</label>
+              <Select value={selectedMatchId} onValueChange={setSelectedMatchId}>
+                <SelectTrigger className="w-full bg-gray-50 border-none h-11 rounded-lg">
+                  <SelectValue placeholder="Choose a recently played match..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {matches.filter(m => !m.statsSyncDone).map(match => (
+                    <SelectItem key={match.id} value={match.id}>
+                      {match.opponent} ({format(match.date, 'MMM dd')})
+                    </SelectItem>
+                  ))}
+                  {matches.filter(m => m.statsSyncDone).length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase">Synchronized</div>
+                      {matches.filter(m => m.statsSyncDone).map(match => (
+                        <SelectItem key={match.id} value={match.id} disabled>
+                          ✓ {match.opponent} ({format(match.date, 'MMM dd')})
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 w-full relative">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">2. Filter Squad</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input 
+                  placeholder="Search by name or squad number..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11 text-xs bg-gray-50 border-none rounded-lg w-full"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Full Width Player List */}
+        <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
+          <CardHeader className="border-b border-gray-50 py-6 px-8">
+            <CardTitle className="text-sm font-black uppercase tracking-widest text-gray-500">Player Performance Ledger</CardTitle>
+          </CardHeader>
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="min-w-[900px]">
+              <Table>
+                <TableHeader className="bg-gray-50">
+                  <TableRow className="border-none">
+                    <TableHead className="w-16 px-8 h-14 font-black text-[10px] uppercase tracking-widest text-gray-400">Status</TableHead>
+                    <TableHead className="px-4 h-14 font-black text-[10px] uppercase tracking-widest text-gray-400">Player</TableHead>
+                    <TableHead className="text-center w-32 h-14 font-black text-[10px] uppercase tracking-widest text-gray-400">Goals Scored</TableHead>
+                    <TableHead className="text-center w-32 h-14 font-black text-[10px] uppercase tracking-widest text-gray-400">Assists Provider</TableHead>
+                    <TableHead className="text-center w-48 h-14 font-black text-[10px] uppercase tracking-widest text-gray-400">GK Analytics (Conceded)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPlayers.map(player => {
+                    const stats = reportData[player.id] || { isPresent: false, goals: 0, assists: 0, conceded: 0 };
+                    return (
+                      <TableRow key={player.id} className={`border-gray-50 transition-colors ${stats.isPresent ? 'bg-red-50/20' : 'opacity-40 hover:opacity-100'}`}>
+                        <TableCell className="px-8">
+                          <button 
+                            onClick={() => updatePlayerStat(player.id, 'isPresent', !stats.isPresent)}
+                            className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all ${stats.isPresent ? 'bg-red-600 border-red-600 text-white shadow-md shadow-red-100' : 'bg-white border-gray-200 text-transparent'}`}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-sm font-black text-gray-900 border-2 border-white shadow-sm ring-1 ring-gray-100">
+                              {player.number}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900">{player.name}</div>
+                              <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{player.position}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center">
+                            <input 
+                              type="number" 
+                              disabled={!stats.isPresent}
+                              value={stats.goals}
+                              onChange={e => updatePlayerStat(player.id, 'goals', Number(e.target.value))}
+                              className="w-16 h-11 text-center font-bold text-sm bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all disabled:opacity-30"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center">
+                            <input 
+                              type="number" 
+                              disabled={!stats.isPresent}
+                              value={stats.assists}
+                              onChange={e => updatePlayerStat(player.id, 'assists', Number(e.target.value))}
+                              className="w-16 h-11 text-center font-bold text-sm bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all disabled:opacity-30"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center px-8">
+                          {player.position === 'Goalkeeper' ? (
+                            <div className="flex items-center justify-center gap-3">
+                              <div className="flex flex-col items-center">
+                                <input 
+                                  type="number" 
+                                  disabled={!stats.isPresent}
+                                  value={stats.conceded}
+                                  onChange={e => updatePlayerStat(player.id, 'conceded', Number(e.target.value))}
+                                  className={`w-16 h-11 text-center font-black rounded-xl outline-none transition-all ${stats.conceded === 0 && stats.isPresent ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'bg-gray-50 text-gray-900 border-none'}`}
+                                />
+                                {stats.conceded === 0 && stats.isPresent && (
+                                  <span className="text-[8px] font-black text-green-600 uppercase mt-1 animate-pulse">Clean Sheet!</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-300 font-black italic">OUTFIELD</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[], isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -2323,6 +2602,10 @@ const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin, isEd
 const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [addingRole, setAddingRole] = useState('viewer');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'users'), (s) => {
@@ -2335,82 +2618,227 @@ const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
   const updateRole = async (userId: string, role: string) => {
     try {
       await updateDoc(doc(db, 'users', userId), { role });
-      toast.success(`Role updated to ${role} for user.`);
+      toast.success(`Role updated to ${role}`);
     } catch (error) {
       toast.error('Failed to update role');
     }
   };
 
-  const deleteUserRecord = async (id: string) => {
-     try {
-       await deleteDoc(doc(db, 'users', id));
-       toast.success('User access revoked');
-     } catch (error) {
-       toast.error('Failed to revoke access');
-     }
-  }
+  const handleCreateUser = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      toast.error('Valid email required');
+      return;
+    }
+    
+    const existingUser = users.find(u => u.email.toLowerCase() === newEmail.toLowerCase());
+    if (existingUser) {
+      toast.error('User already exists in system');
+      return;
+    }
 
-  if (loading) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div>;
+    try {
+      const encodedId = `pre_${newEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      await setDoc(doc(db, 'users', encodedId), {
+        email: newEmail.toLowerCase(),
+        role: addingRole,
+        isPreAuthorized: true,
+        displayName: 'Invited User'
+      });
+      toast.success(`Pre-authorized ${newEmail} as ${addingRole}`);
+      setNewEmail('');
+      setIsAdding(false);
+    } catch (error) {
+      toast.error('Failed to pre-authorize user');
+    }
+  };
+
+  const deleteUserRecord = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'users', id));
+      toast.success('User access revoked');
+    } catch (error) {
+      toast.error('Failed to revoke access');
+    }
+  };
+
+  const filteredUsers = users.filter(u => 
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.id?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return <div className="p-20 text-center"><Loader2 className="w-12 h-12 animate-spin mx-auto text-red-600" /></div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold text-gray-900">Access Control</h2>
-        <p className="text-gray-500 text-sm">Manage administrative roles and permissions for your team. Only Super Admins can see this.</p>
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Access Control Center</h2>
+          <p className="text-gray-500 text-sm max-w-lg">Manage administrative roles and permissions. Changes take effect immediately upon next user login.</p>
+        </div>
+        <Button 
+          onClick={() => setIsAdding(!isAdding)}
+          className="bg-gray-900 hover:bg-black text-white rounded-xl h-12 px-6"
+        >
+          {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          {isAdding ? 'Cancel' : 'Pre-authorize User'}
+        </Button>
       </div>
 
-      <div className="grid gap-4">
-        {users.map((u) => (
-          <Card key={u.id} className="p-6 bg-white border-none shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-bold text-gray-900">{u.email}</h3>
-                {u.id === currentUserId && <Badge className="bg-blue-100 text-blue-600 border-none">You</Badge>}
-              </div>
-              <p className="text-[10px] text-gray-400 font-mono tracking-tighter">UID: {u.id}</p>
+      {isAdding && (
+        <Card className="border-none shadow-xl bg-white p-8 animate-in slide-in-from-top-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User Email</label>
+              <Input 
+                value={newEmail} 
+                onChange={e => setNewEmail(e.target.value)} 
+                placeholder="email@example.com"
+                className="h-12 bg-gray-50 border-none rounded-xl"
+              />
             </div>
-            
-            <div className="flex items-center gap-3">
-              <Select value={u.role} onValueChange={(val) => updateRole(u.id, val)}>
-                <SelectTrigger className="w-40 h-10 border-gray-200 rounded-xl">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assign Role</label>
+              <Select value={addingRole} onValueChange={setAddingRole}>
+                <SelectTrigger className="h-12 bg-gray-50 border-none rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="editor">Editor (Photos/Names Only)</SelectItem>
-                  <SelectItem value="viewer">Viewer (No Access)</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>
-              {u.id !== currentUserId && (
-                <Button variant="ghost" size="icon" onClick={() => deleteUserRecord(u.id)} className="text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
             </div>
-          </Card>
-        ))}
-      </div>
+            <div className="flex items-end">
+              <Button 
+                onClick={handleCreateUser}
+                className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-xs rounded-xl"
+              >
+                Create Access
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
-      <Card className="p-8 bg-blue-50 border-none border-l-4 border-l-blue-400 rounded-2xl">
-        <div className="flex gap-4">
-          <Shield className="w-6 h-6 text-blue-600 flex-shrink-0" />
+      <Card className="border-none shadow-md bg-white overflow-hidden">
+        <CardHeader className="border-b border-gray-50 flex flex-row items-center justify-between py-6">
+          <CardTitle className="text-sm font-black uppercase tracking-widest text-gray-500">System Users ({filteredUsers.length})</CardTitle>
+          <div className="w-72">
+            <div className="relative">
+              <LayoutDashboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input 
+                placeholder="Search email or UID..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 h-10 text-xs bg-gray-50 border-none rounded-xl w-full"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-gray-50">
+              <TableRow className="border-none">
+                <TableHead className="font-black text-[10px] uppercase tracking-widest text-gray-400 h-12">User Profile</TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-widest text-gray-400 h-12">Permission Level</TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-widest text-gray-400 h-12 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((u) => (
+                <TableRow key={u.id} className="border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <TableCell>
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-10 w-10 border-2 border-white shadow-sm ring-1 ring-gray-100">
+                        <AvatarImage src={u.photoURL} />
+                        <AvatarFallback className="bg-slate-100 text-slate-400 font-black">
+                          {u.email?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900">{u.email}</span>
+                          {u.id === currentUserId && (
+                            <Badge className="bg-blue-50 text-blue-600 border-none text-[8px] h-4">You</Badge>
+                          )}
+                          {u.isPreAuthorized && (
+                            <Badge className="bg-amber-50 text-amber-600 border-none text-[8px] h-4">Pre-Auth</Badge>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-mono flex items-center gap-2 mt-1">
+                          <Shield className="w-2.5 h-2.5" />
+                          {u.id}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Select value={u.role} onValueChange={(val) => updateRole(u.id, val)}>
+                      <SelectTrigger className={`w-40 h-9 border-none font-bold text-xs rounded-lg transition-all ${
+                        u.role === 'super_admin' ? 'bg-red-50 text-red-600' : 
+                        u.role === 'editor' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {u.id !== currentUserId && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteUserRecord(u.id)} 
+                        className="text-gray-300 hover:text-red-500 hover:bg-red-50 h-9 w-9 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredUsers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-40 text-center">
+                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                      <Shield className="w-8 h-8 opacity-20" />
+                      <p className="text-sm">No users found matching your search</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+      
+      <Card className="p-8 bg-blue-50 border-none rounded-3xl">
+        <div className="flex gap-6">
+          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+            <Shield className="w-6 h-6" />
+          </div>
           <div>
-            <h4 className="font-bold text-blue-900 mb-2 underline decoration-blue-200">Role Permissions Guide:</h4>
-            <ul className="text-sm text-blue-800 space-y-3">
-              <li className="flex gap-2">
-                <Badge className="bg-blue-600 h-fit">Super Admin</Badge>
-                <span>Full access to team stats, matches, finances, and role management.</span>
-              </li>
-              <li className="flex gap-2">
-                <Badge className="bg-slate-400 h-fit">Editor</Badge>
-                <span>Can update **names** and **photos** of players/officials, and **video links** to matches. Cannot add/delete items or change stats.</span>
-              </li>
-            </ul>
+            <h4 className="font-black text-blue-900 mb-3 uppercase tracking-widest text-xs">Security Protocols</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-blue-800/80 leading-relaxed">
+              <div>
+                <p className="font-bold text-blue-900 mb-2">Super Admin Privileges</p>
+                Full CRUD access to critical infrastructure. Database wide edits, deletions, and role governance.
+              </div>
+              <div>
+                <p className="font-bold text-blue-900 mb-2">Editor Guardrails</p>
+                Restricted to content curation. Permission to modify visuals (photos) and identifiers (names) but barred from lifecycle data changes or finance records.
+              </div>
+            </div>
           </div>
         </div>
       </Card>
     </div>
-  )
+  );
 };
 
 export default AdminPage;

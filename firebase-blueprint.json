@@ -13,6 +13,7 @@
         "matchesPlayed": { "type": "number" },
         "goals": { "type": "number" },
         "assists": { "type": "number" },
+        "cleanSheets": { "type": "number" },
         "rating": { "type": "number" },
         "bio": { "type": "string" },
         "origin": { "type": "string" },
@@ -115,9 +116,25 @@
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["url", "date"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user profile with role permissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "editor", "viewer"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["email", "role"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user permissions"
+    },
     "/players/{playerId}": {
       "schema": "Player",
       "description": "Collection of players"

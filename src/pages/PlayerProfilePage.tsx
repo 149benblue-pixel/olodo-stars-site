@@ -194,6 +194,37 @@ const PlayerProfilePage = () => {
         commitmentCount: currentCount + 1
       });
       toast.success('Thank you for vouching for ' + player.name + '!');
+      
+      // Heart animation effect
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.top = '50%';
+      container.style.left = '50%';
+      container.style.transform = 'translate(-50%, -50%)';
+      container.style.zIndex = '9999';
+      container.style.pointerEvents = 'none';
+      document.body.appendChild(container);
+
+      const heart = document.createElement('div');
+      heart.innerHTML = '❤️';
+      heart.style.fontSize = '100px';
+      heart.style.animation = 'floatAndFade 1s ease-out forwards';
+      container.appendChild(heart);
+
+      const style = document.createElement('style');
+      style.innerHTML = `
+        @keyframes floatAndFade {
+          0% { transform: scale(0.5); opacity: 0; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1.5) translateY(-100px); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      setTimeout(() => {
+        document.body.removeChild(container);
+        document.head.removeChild(style);
+      }, 1000);
     } catch (err) {
       console.error('Error vouching:', err);
     }
@@ -431,29 +462,44 @@ const PlayerProfilePage = () => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
-              <CardContent className="p-8 text-center relative">
-                <ShieldCheck className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                <h3 className="font-bold text-gray-900 mb-2">Club Commitment</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  {player.name} is a vital part of the squads' core structure. Vouch for their dedication!
+            <Card className="rounded-3xl border-none shadow-xl bg-white overflow-hidden relative group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700" />
+              <CardContent className="p-8 text-center relative z-10">
+                <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mx-auto mb-6 shadow-sm rotate-3 group-hover:rotate-0 transition-transform">
+                  <ShieldCheck className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Club Pillar</h3>
+                <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+                  {player.name} exemplifies the spirit of this club. Join {(player.commitmentCount || 0) + 12} fans who have vouched for their unwavering commitment!
                 </p>
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex justify-center -space-x-2">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white" />
-                    ))}
-                    <div className="w-8 h-8 rounded-full bg-red-50 border-2 border-white flex items-center justify-center text-[8px] font-black text-red-600">
-                      +{player.commitmentCount || 0}
+                
+                <div className="space-y-6">
+                  <div className="flex flex-col items-center">
+                    <div className="text-5xl font-black text-red-600 mb-1 tabular-nums">
+                      {player.commitmentCount || 0}
                     </div>
+                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Total Vouches</div>
                   </div>
+
+                  <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(((player.commitmentCount || 0) / 100) * 100, 100)}%` }}
+                      className="absolute inset-y-0 left-0 bg-red-600"
+                    />
+                  </div>
+                  
                   <Button 
                     onClick={handleVouch}
-                    className="bg-blue-600 hover:bg-blue-700 rounded-full h-10 px-6 font-bold text-xs flex items-center gap-2 group transition-all active:scale-95"
+                    className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 group transition-all active:scale-95 shadow-lg shadow-gray-200"
                   >
-                    <Heart className="w-4 h-4 group-hover:fill-current" />
-                    Vouch for Commitment
+                    <Heart className="w-5 h-5 group-hover:fill-current text-red-500" />
+                    Vouch for {player.name.split(' ')[0]}
                   </Button>
+                  
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                    Click to acknowledge their dedication to the badge
+                  </p>
                 </div>
               </CardContent>
             </Card>

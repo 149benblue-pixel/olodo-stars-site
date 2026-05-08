@@ -87,7 +87,7 @@ const GalleryPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-white/70 text-xs">
                     <Calendar className="w-3 h-3" />
-                    {item.date && format(item.date.toDate(), 'MMM dd, yyyy')}
+                    {item.date && format(item.date.toDate ? item.date.toDate() : new Date(item.date), 'MMM dd, yyyy')}
                   </div>
                   <Maximize2 className="w-5 h-5 text-white" />
                 </div>
@@ -136,7 +136,7 @@ const GalleryPage = () => {
                 <h2 className="text-2xl font-bold text-white mb-2">{selectedImage.caption}</h2>
                 <p className="text-white/60 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  {selectedImage.date && format(selectedImage.date.toDate(), 'MMMM dd, yyyy')}
+                  {selectedImage.date && format(selectedImage.date.toDate ? selectedImage.date.toDate() : new Date(selectedImage.date), 'MMMM dd, yyyy')}
                 </p>
               </div>
             </motion.div>

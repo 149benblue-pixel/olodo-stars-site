@@ -13,9 +13,7 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { auth, db, signInWithGoogle, logout, storage, uploadFile } from '../firebase';
-import { supabase, isSupabaseConfigured, uploadToSupabase } from '../supabase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, signInWithGoogle, logout, storage, uploadFile, handleFirestoreError, OperationType, firebaseConfig } from '../firebase';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +62,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
 
 interface AdminPageProps {
@@ -71,98 +70,73 @@ interface AdminPageProps {
   role: string | null;
 }
 
-const DatabaseStatus = () => {
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
+const useOptimizedUpload = (isVerified: boolean) => {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  useEffect(() => {
-    const checkSupabase = async () => {
-      if (!isSupabaseConfigured || !supabase) {
-        setSupabaseConnected(false);
-        return;
-      }
-      try {
-        // We just check if the client can reach the endpoint
-        const { error } = await supabase.from('test').select('*').limit(1);
-        // Even if table doesn't exist, if we reach it we are good
-        setSupabaseConnected(true);
-      } catch (e) {
-        setSupabaseConnected(false);
-      }
-    };
-    checkSupabase();
-  }, []);
+  const handleUpload = async (file: File, path: string): Promise<string | null> => {
+    if (!isVerified) {
+      toast.error('Email verification required');
+      return null;
+    }
 
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold text-gray-900">Backend Infrastructure</h2>
-        <p className="text-gray-500 text-sm">Monitor multi-cloud database connectivity and health.</p>
-      </div>
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG and WEBP files are allowed');
+      return null;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadStatus('Compressing...');
+    setUploadSuccess(false);
+    
+    try {
+      const options = {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1280,
+        useWebWorker: true,
+        onProgress: (p: number) => {
+          // p is 0 to 1
+          setUploadProgress(Math.round(p * 50));
+        }
+      };
+
+      const compressedFile = await imageCompression(file, options);
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-none shadow-lg bg-white p-8 group hover:shadow-xl transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-orange-100 rounded-[2rem] flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform duration-500">
-                <Shield className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-gray-900">Firebase</h3>
-                <p className="text-xs text-gray-500 font-medium italic">Production Database & Auth</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge className="bg-green-500 text-[10px] font-black uppercase tracking-widest px-3">Live</Badge>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Firestore v12.12</span>
-            </div>
-          </div>
-        </Card>
+      setUploadStatus('Uploading...');
+      setUploadProgress(50); // Ensure we are at least at 50%
 
-        <Card className="border-none shadow-lg bg-white p-8 group hover:shadow-xl transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-emerald-100 rounded-[2rem] flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform duration-500">
-                <Zap className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-gray-900">Supabase</h3>
-                <p className="text-xs text-gray-500 font-medium italic">Advanced Realtime (Enabled)</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              {!isSupabaseConfigured ? (
-                <Badge className="bg-amber-500 text-[10px] font-black uppercase tracking-widest px-3">Not Configured</Badge>
-              ) : supabaseConnected === null ? (
-                <Badge className="bg-gray-400 text-[10px] font-black uppercase tracking-widest px-3 flex gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Syncing
-                </Badge>
-              ) : supabaseConnected ? (
-                <Badge className="bg-green-500 text-[10px] font-black uppercase tracking-widest px-3">Active</Badge>
-              ) : (
-                <Badge className="bg-red-500 text-[10px] font-black uppercase tracking-widest px-3">Offline</Badge>
-              )}
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">PostgreSQL REST</span>
-            </div>
-          </div>
-        </Card>
-      </div>
+      const url = await uploadFile(compressedFile, path, (p) => {
+        // p is 0 to 100
+        const uploadPart = Math.round(p * 0.5);
+        setUploadProgress(50 + uploadPart);
+      });
+      
+      setUploadProgress(100);
+      setUploadStatus('Complete!');
+      setUploadSuccess(true);
+      
+      // Keep success state for 2 seconds
+      setTimeout(() => setUploadSuccess(false), 2000);
+      
+      return url;
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      toast.error(error.message || 'Processing failed');
+      return null;
+    } finally {
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+        setUploadStatus('');
+      }, 500);
+    }
+  };
 
-      <div className="mt-12 p-8 bg-blue-50 rounded-3xl border border-blue-100">
-        <div className="flex gap-4 items-start">
-          <div className="p-3 bg-white rounded-2xl shadow-sm">
-            <SettingsIcon className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h4 className="font-bold text-blue-900 mb-1">Superbase Integration Active</h4>
-            <p className="text-sm text-blue-700 leading-relaxed">
-              Your application is now connected to <strong>{import.meta.env.VITE_SUPABASE_URL || 'Supabase'}</strong>. 
-              The backend infrastructure is running in a hybrid-cloud configuration, allowing for future migrations or secondary data streams.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return { uploading, uploadProgress, uploadStatus, uploadSuccess, handleUpload };
 };
 
 const AdminPage = ({ user, role }: AdminPageProps) => {
@@ -175,7 +149,6 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
   const [donations, setDonations] = useState<any[]>([]);
   const [teamStats, setTeamStats] = useState<any>(null);
   const [socialLinks, setSocialLinks] = useState<any>(null);
-  const [supabaseMedia, setSupabaseMedia] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = role === 'super_admin' || user?.email === '149benblue@gmail.com';
@@ -210,23 +183,6 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
     const unsubSocial = onSnapshot(doc(db, 'settings', 'socialLinks'), (d) => {
       if (d.exists()) setSocialLinks(d.data());
     });
-
-    // Supabase Media fetching
-    const fetchSupabaseMedia = async () => {
-      if (!isSupabaseConfigured || !supabase) return;
-      try {
-        const { data, error } = await supabase
-          .from('club_media')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        setSupabaseMedia(data || []);
-      } catch (err) {
-        console.error('Error fetching Supabase media:', err);
-      }
-    };
-    fetchSupabaseMedia();
 
     return () => {
       unsubPlayers();
@@ -360,8 +316,8 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
                 <TabsTrigger value="settings" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
                   <SettingsIcon className="w-3.5 h-3.5" /> Config
                 </TabsTrigger>
-                <TabsTrigger value="database" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
-                  <BarChart3 className="w-3.5 h-3.5" /> Health
+                <TabsTrigger value="storage" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white flex items-center gap-2 transition-all">
+                  <ImageIcon className="w-3.5 h-3.5" /> Storage
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -444,23 +400,15 @@ const AdminPage = ({ user, role }: AdminPageProps) => {
             </TabsContent>
           )}
 
-          <TabsContent value="supabase-media">
-            <SupabaseMediaManager items={supabaseMedia} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} onRefresh={() => {
-              // Trigger a re-fetch manually if needed
-              if (supabase) {
-                supabase.from('club_media').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-                  setSupabaseMedia(data || []);
-                });
-              }
-            }} />
-          </TabsContent>
-
           <TabsContent value="settings">
             <SettingsManager stats={teamStats} social={socialLinks} isVerified={isVerified || false} isSuperAdmin={isSuperAdmin} isEditor={isEditor} />
           </TabsContent>
 
-          <TabsContent value="database">
-            <DatabaseStatus />
+          <TabsContent value="storage">
+            <DirectFirebaseStorage 
+              isVerified={isVerified || false}
+              isEditor={isEditor}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -514,8 +462,8 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const { uploading, uploadProgress, uploadStatus, uploadSuccess, handleUpload } = useOptimizedUpload(isVerified);
   const [formData, setFormData] = useState({
     name: '',
     number: '',
@@ -555,49 +503,54 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
       joinedDate: player.joinedDate ? (player.joinedDate instanceof Date ? format(player.joinedDate, 'yyyy-MM-dd') : format(player.joinedDate.toDate(), 'yyyy-MM-dd')) : format(new Date(), 'yyyy-MM-dd'),
       commitmentCount: player.commitmentCount || 0
     });
+    setLocalPreview(player.photo || null);
     setIsAdding(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validation
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG and WEBP files are allowed');
-      return;
-    }
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
+    // Local preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLocalPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const url = await uploadFile(file, 'players', (progress) => {
-        setUploadProgress(Math.round(progress));
-      });
+    const url = await handleUpload(file, 'players');
+    if (url) {
       setFormData(prev => ({ ...prev, photo: url }));
-      
-      // If we are editing an existing player, update the document immediately
+      setLocalPreview(url);
       if (editingId) {
         await updateDoc(doc(db, 'players', editingId), { photo: url });
       }
-      
-      toast.success('Photo uploaded successfully ✅');
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      toast.error(`Error uploading photo: ${error.message || 'Unknown error'}`);
-    } finally {
-      setUploading(false);
+      toast.success('Optimized photo uploaded! ⚡');
+    } else {
+      setLocalPreview(formData.photo || null);
     }
+  };
+
+  const validateStats = () => {
+    const numFields = {
+      number: Number(formData.number),
+      matchesPlayed: Number(formData.matchesPlayed),
+      goals: Number(formData.goals),
+      assists: Number(formData.assists),
+      cleanSheets: Number(formData.cleanSheets),
+      rating: Number(formData.rating),
+      commitmentCount: Number(formData.commitmentCount)
+    };
+
+    if (numFields.number < 0) return 'Jersey number cannot be negative';
+    if (numFields.matchesPlayed < 0) return 'Matches played cannot be negative';
+    if (numFields.goals < 0) return 'Goals cannot be negative';
+    if (numFields.assists < 0) return 'Assists cannot be negative';
+    if (numFields.cleanSheets < 0) return 'Clean sheets cannot be negative';
+    if (numFields.rating < 0 || numFields.rating > 10) return 'Rating must be between 0 and 10';
+    if (numFields.commitmentCount < 0) return 'Commitment count cannot be negative';
+    
+    return null;
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -606,6 +559,13 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
       toast.error('Email verification required');
       return;
     }
+
+    const error = validateStats();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
     try {
       const data = {
         ...formData,
@@ -620,11 +580,21 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
       };
 
       if (editingId) {
-        await updateDoc(doc(db, 'players', editingId), data);
-        toast.success('Player updated successfully');
+        const path = `players/${editingId}`;
+        try {
+          await updateDoc(doc(db, 'players', editingId), data);
+          toast.success('Player updated successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'players'), data);
-        toast.success('Player added successfully');
+        const path = 'players';
+        try {
+          await addDoc(collection(db, 'players'), data);
+          toast.success('Player added successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       
       setIsAdding(false);
@@ -646,17 +616,20 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
         commitmentCount: 0
       });
     } catch (error) {
-      toast.error(editingId ? 'Error updating player' : 'Error adding player');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error(editingId ? 'Error updating player' : 'Error adding player');
+      }
     }
   };
 
   const handleDelete = async () => {
     if (!deleteId || !isVerified) return;
+    const path = `players/${deleteId}`;
     try {
       await deleteDoc(doc(db, 'players', deleteId));
       toast.success('Player deleted');
     } catch (error) {
-      toast.error('Error deleting player');
+      handleFirestoreError(error, OperationType.DELETE, path);
     } finally {
       setDeleteId(null);
     }
@@ -698,7 +671,7 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Jersey Number</label>
-              <Input type="number" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} required disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Position</label>
@@ -712,10 +685,65 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-xs font-bold text-gray-500 uppercase">Player Photo</label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                <div className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center transition-all hover:border-red-300">
+                  {localPreview || formData.photo ? (
+                    <>
+                      <img src={localPreview || formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                          <Loader2 className="w-8 h-8 text-white animate-spin mb-4" />
+                          <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden mb-2">
+                            <motion.div 
+                              className="bg-red-500 h-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">{uploadStatus} {uploadProgress}%</p>
+                        </div>
+                      )}
+                      {uploadSuccess && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute inset-0 bg-green-500/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center text-white"
+                        >
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
+                            <Check className="w-8 h-8 text-green-500" />
+                          </div>
+                          <p className="text-xs font-black uppercase tracking-widest italic">Success!</p>
+                        </motion.div>
+                      )}
+                      {!uploading && !uploadSuccess && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <label htmlFor="player-photo-upload" className="p-2 bg-white rounded-full cursor-pointer hover:scale-110 transition-transform">
+                            <Upload className="w-5 h-5 text-gray-900" />
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, photo: '' }));
+                              setLocalPreview(null);
+                            }}
+                            className="p-2 bg-white rounded-full hover:scale-110 transition-transform"
+                          >
+                            <X className="w-5 h-5 text-red-600" />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <label htmlFor="player-photo-upload" className="flex flex-col items-center justify-center cursor-pointer p-6">
+                      <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Click to upload</span>
+                      <span className="text-[10px] text-gray-400 mt-1 uppercase">JPG, PNG, WEBP (Max 5MB)</span>
+                    </label>
+                  )}
                   <Input 
                     type="file" 
                     accept="image/jpeg,image/png,image/webp" 
@@ -724,62 +752,41 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
                     id="player-photo-upload"
                     disabled={uploading}
                   />
-                  <label 
-                    htmlFor="player-photo-upload"
-                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer transition-all border border-slate-200 border-dashed hover:border-red-300 hover:text-red-600 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-bold">{uploading ? `Uploading ${uploadProgress}%` : formData.photo ? 'Change Photo' : 'Upload Image'}</span>
-                  </label>
-                  {formData.photo && (
-                    <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 animate-in zoom-in-50 duration-300">
-                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <button 
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, photo: '' }))}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-[1px] bg-gray-100 flex-grow" />
-                  <span className="text-[10px] text-gray-400 font-bold uppercase">or</span>
-                  <div className="h-[1px] bg-gray-100 flex-grow" />
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">External Image URL</label>
+                  <Input 
+                    value={formData.photo} 
+                    onChange={e => {
+                      setFormData({...formData, photo: e.target.value});
+                      setLocalPreview(null);
+                    }} 
+                    placeholder="https://example.com/photo.jpg" 
+                    className="text-xs h-9 bg-gray-50/50 rounded-lg"
+                  />
                 </div>
-                <Input 
-                  value={formData.photo} 
-                  onChange={e => setFormData({...formData, photo: e.target.value})} 
-                  placeholder="Paste image URL here..." 
-                  className="text-[10px] h-8 bg-gray-50/50"
-                />
               </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Matches Played</label>
-              <Input type="number" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.matchesPlayed} onChange={e => setFormData({...formData, matchesPlayed: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals</label>
-              <Input type="number" value={formData.goals} onChange={e => setFormData({...formData, goals: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.goals} onChange={e => setFormData({...formData, goals: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Assists</label>
-              <Input type="number" value={formData.assists} onChange={e => setFormData({...formData, assists: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.assists} onChange={e => setFormData({...formData, assists: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
-              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Rating</label>
-              <Input type="number" step="0.1" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" step="0.1" min="0" max="10" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Availability</label>
@@ -801,7 +808,7 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Commitment Count</label>
-              <Input type="number" value={formData.commitmentCount.toString()} onChange={e => setFormData({...formData, commitmentCount: Number(e.target.value)})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.commitmentCount.toString()} onChange={e => setFormData({...formData, commitmentCount: Number(e.target.value)})} disabled={!isSuperAdmin} />
             </div>
             <div className="md:col-span-2 lg:col-span-4 space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Player Bio</label>
@@ -829,10 +836,11 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
       )}
 
       <Card className="border-none shadow-md bg-white overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Position</TableHead>
               <TableHead>Stats (M/G/A/CS)</TableHead>
@@ -878,7 +886,8 @@ const PlayerManager = ({ players, isVerified, isSuperAdmin, isEditor }: { player
             ))}
           </TableBody>
         </Table>
-      </Card>
+      </div>
+    </Card>
     </div>
   );
 };
@@ -887,8 +896,8 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const { uploading, uploadProgress, uploadStatus, uploadSuccess, handleUpload } = useOptimizedUpload(isVerified);
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -908,48 +917,30 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
       photo: official.photo || '',
       contact: official.contact || ''
     });
+    setLocalPreview(official.photo || null);
     setIsAdding(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validation
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG and WEBP files are allowed');
-      return;
-    }
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLocalPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const url = await uploadFile(file, 'officials', (progress) => {
-        setUploadProgress(Math.round(progress));
-      });
+    const url = await handleUpload(file, 'officials');
+    if (url) {
       setFormData(prev => ({ ...prev, photo: url }));
-      
-      // If we are editing an existing official, update the document immediately
+      setLocalPreview(url);
       if (editingId) {
         await updateDoc(doc(db, 'officials', editingId), { photo: url });
       }
-      
-      toast.success('Photo uploaded successfully ✅');
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      toast.error(`Error uploading photo: ${error.message || 'Unknown error'}`);
-    } finally {
-      setUploading(false);
+      toast.success('Optimized official photo uploaded! ⚡');
+    } else {
+      setLocalPreview(formData.photo || null);
     }
   };
 
@@ -961,27 +952,40 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
     }
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'officials', editingId), formData);
-        toast.success('Official updated successfully');
+        const path = `officials/${editingId}`;
+        try {
+          await updateDoc(doc(db, 'officials', editingId), formData);
+          toast.success('Official updated successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'officials'), formData);
-        toast.success('Official added successfully');
+        const path = 'officials';
+        try {
+          await addDoc(collection(db, 'officials'), formData);
+          toast.success('Official added successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       setIsAdding(false);
       setEditingId(null);
       setFormData({ name: '', role: '', photo: '', contact: '' });
     } catch (error) {
-      toast.error(editingId ? 'Error updating official' : 'Error adding official');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error(editingId ? 'Error updating official' : 'Error adding official');
+      }
     }
   };
 
   const handleDelete = async () => {
     if (!deleteId || !isVerified) return;
+    const path = `officials/${deleteId}`;
     try {
       await deleteDoc(doc(db, 'officials', deleteId));
       toast.success('Official deleted');
     } catch (error) {
-      toast.error('Error deleting official');
+      handleFirestoreError(error, OperationType.DELETE, path);
     } finally {
       setDeleteId(null);
     }
@@ -1025,48 +1029,87 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
               <label className="text-xs font-bold text-gray-500 uppercase">Role (e.g. Coach, Manager)</label>
               <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} required disabled={!isSuperAdmin} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-xs font-bold text-gray-500 uppercase">Official Photo</label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                <div className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center transition-all hover:border-red-300">
+                  {localPreview || formData.photo ? (
+                    <>
+                      <img src={localPreview || formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                          <Loader2 className="w-8 h-8 text-white animate-spin mb-4" />
+                          <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden mb-2">
+                            <motion.div 
+                              className="bg-red-500 h-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">{uploadStatus} {uploadProgress}%</p>
+                        </div>
+                      )}
+                      {uploadSuccess && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute inset-0 bg-green-500/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center text-white"
+                        >
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
+                            <Check className="w-8 h-8 text-green-500" />
+                          </div>
+                          <p className="text-xs font-black uppercase tracking-widest italic">Success!</p>
+                        </motion.div>
+                      )}
+                      {!uploading && !uploadSuccess && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <label htmlFor="official-photo-upload" className="p-2 bg-white rounded-full cursor-pointer hover:scale-110 transition-transform">
+                            <Upload className="w-5 h-5 text-gray-900" />
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, photo: '' }));
+                              setLocalPreview(null);
+                            }}
+                            className="p-2 bg-white rounded-full hover:scale-110 transition-transform"
+                          >
+                            <X className="w-5 h-5 text-red-600" />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <label htmlFor="official-photo-upload" className="flex flex-col items-center justify-center cursor-pointer p-6">
+                      <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Click to upload</span>
+                      <span className="text-[10px] text-gray-400 mt-1 uppercase">JPG, PNG, WEBP (Max 5MB)</span>
+                    </label>
+                  )}
                   <Input 
                     type="file" 
-                    accept="image/jpeg,image/png" 
+                    accept="image/jpeg,image/png,image/webp" 
                     onChange={handleFileUpload} 
                     className="hidden" 
                     id="official-photo-upload"
                     disabled={uploading}
                   />
-                  <label 
-                    htmlFor="official-photo-upload"
-                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer transition-all border border-slate-200 border-dashed hover:border-red-300 hover:text-red-600 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-bold">{uploading ? `Uploading ${uploadProgress}%` : formData.photo ? 'Change Photo' : 'Upload Image'}</span>
-                  </label>
-                  {formData.photo && (
-                    <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <button 
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, photo: '' }))}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  )}
                 </div>
-                <Input 
-                  value={formData.photo} 
-                  onChange={e => setFormData({...formData, photo: e.target.value})} 
-                  placeholder="Or paste image URL" 
-                  className="text-[10px] h-7 bg-gray-50/50"
-                />
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">External Image URL</label>
+                  <Input 
+                    value={formData.photo} 
+                    onChange={e => {
+                      setFormData({...formData, photo: e.target.value});
+                      setLocalPreview(null);
+                    }} 
+                    placeholder="https://example.com/photo.jpg" 
+                    className="text-xs h-9 bg-gray-50/50 rounded-lg"
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -1083,10 +1126,11 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
       )}
 
       <Card className="border-none shadow-md bg-white overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -1122,7 +1166,8 @@ const OfficialManager = ({ officials, isVerified, isSuperAdmin, isEditor }: { of
             ))}
           </TableBody>
         </Table>
-      </Card>
+      </div>
+    </Card>
     </div>
   );
 };
@@ -1188,17 +1233,35 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
       return;
     }
     try {
+      if (!formData.isUpcoming && formData.score) {
+        const scoreRegex = /^\d+-\d+$/;
+        if (!scoreRegex.test(formData.score)) {
+          toast.error('Score must be in format "X-Y" (e.g. 2-1)');
+          return;
+        }
+      }
+      
       const data = {
         ...formData,
         date: new Date(formData.date)
       };
 
       if (editingId) {
-        await updateDoc(doc(db, 'matches', editingId), data);
-        toast.success('Match updated successfully');
+        const path = `matches/${editingId}`;
+        try {
+          await updateDoc(doc(db, 'matches', editingId), data);
+          toast.success('Match updated successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'matches'), data);
-        toast.success('Match added successfully');
+        const path = 'matches';
+        try {
+          await addDoc(collection(db, 'matches'), data);
+          toast.success('Match added successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       
       setIsAdding(false);
@@ -1211,11 +1274,12 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
 
   const handleDelete = async () => {
     if (!deleteId || !isVerified) return;
+    const path = `matches/${deleteId}`;
     try {
       await deleteDoc(doc(db, 'matches', deleteId));
       toast.success('Match deleted');
     } catch (error) {
-      toast.error('Error deleting match');
+      handleFirestoreError(error, OperationType.DELETE, path);
     } finally {
       setDeleteId(null);
     }
@@ -1324,14 +1388,15 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
               <Calendar className="w-4 h-4" /> Upcoming Fixtures
             </h3>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Opponent</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Opponent</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {matches.filter(m => m.isUpcoming).map(match => (
                 <TableRow key={match.id}>
@@ -1358,14 +1423,16 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
               )}
             </TableBody>
           </Table>
-        </Card>
+        </div>
+      </Card>
 
-        <Card className="border-none shadow-md bg-white overflow-hidden">
-          <div className="p-4 bg-red-50 border-b border-red-100">
-            <h3 className="font-bold text-red-900 flex items-center gap-2">
-              <Trophy className="w-4 h-4" /> Past Results
-            </h3>
-          </div>
+      <Card className="border-none shadow-md bg-white overflow-hidden">
+        <div className="p-4 bg-red-50 border-b border-red-100">
+          <h3 className="font-bold text-red-900 flex items-center gap-2">
+            <Trophy className="w-4 h-4" /> Past Results
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1402,10 +1469,11 @@ const MatchManager = ({ matches, isVerified, isSuperAdmin, isEditor }: { matches
               )}
             </TableBody>
           </Table>
-        </Card>
-      </div>
+        </div>
+      </Card>
     </div>
-  );
+  </div>
+);
 };
 
 const MatchReportManager = ({ players, matches, isVerified }: { players: any[], matches: any[], isVerified: boolean }) => {
@@ -1434,11 +1502,16 @@ const MatchReportManager = ({ players, matches, isVerified }: { players: any[], 
   }, [players]);
 
   const updatePlayerStat = (playerId: string, field: string, value: any) => {
+    const numValue = Number(value);
+    if (field !== 'isPresent' && (isNaN(numValue) || numValue < 0)) {
+      toast.error('Stats cannot be negative');
+      return;
+    }
     setReportData(prev => ({
       ...prev,
       [playerId]: {
         ...prev[playerId],
-        [field]: value
+        [field]: field === 'isPresent' ? value : numValue
       }
     }));
   };
@@ -1495,16 +1568,23 @@ const MatchReportManager = ({ players, matches, isVerified }: { players: any[], 
       await Promise.all(updates);
       
       // Update match to mark it as recapped
-      await updateDoc(doc(db, 'matches', selectedMatchId), {
-        statsSyncDone: true,
-        statsSyncDate: serverTimestamp()
-      });
+      const matchPath = `matches/${selectedMatchId}`;
+      try {
+        await updateDoc(doc(db, 'matches', selectedMatchId), {
+          statsSyncDone: true,
+          statsSyncDate: serverTimestamp()
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, matchPath);
+      }
 
       toast.success(`Report synced! Updated stats for ${presentPlayers.length} players.`);
       setSelectedMatchId('');
     } catch (error) {
       console.error(error);
-      toast.error('Error updating stats');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error('Error updating stats');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1680,8 +1760,8 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const { uploading, uploadProgress, uploadStatus, uploadSuccess, handleUpload } = useOptimizedUpload(isVerified);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -1699,48 +1779,30 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
       content: item.content,
       image: item.image || ''
     });
+    setLocalPreview(item.image || null);
     setIsAdding(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validation
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG and WEBP files are allowed');
-      return;
-    }
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLocalPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const url = await uploadFile(file, 'news', (progress) => {
-        setUploadProgress(Math.round(progress));
-      });
+    const url = await handleUpload(file, 'news');
+    if (url) {
       setFormData(prev => ({ ...prev, image: url }));
-      
-      // If we are editing an existing news item, update the document immediately
+      setLocalPreview(url);
       if (editingId) {
         await updateDoc(doc(db, 'news', editingId), { image: url });
       }
-      
-      toast.success('Image uploaded successfully ✅');
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      toast.error(`Error uploading image: ${error.message || 'Unknown error'}`);
-    } finally {
-      setUploading(false);
+      toast.success('Optimized news image uploaded! ⚡');
+    } else {
+      setLocalPreview(formData.image || null);
     }
   };
 
@@ -1752,21 +1814,33 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
     }
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'news', editingId), formData);
-        toast.success('News updated successfully');
+        const path = `news/${editingId}`;
+        try {
+          await updateDoc(doc(db, 'news', editingId), formData);
+          toast.success('News updated successfully');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'news'), {
-          ...formData,
-          date: serverTimestamp(),
-          approved: true // Admin posts are auto-approved
-        });
-        toast.success('News posted');
+        const path = 'news';
+        try {
+          await addDoc(collection(db, 'news'), {
+            ...formData,
+            date: serverTimestamp(),
+            approved: true // Admin posts are auto-approved
+          });
+          toast.success('News posted');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       setIsAdding(false);
       setEditingId(null);
       setFormData({ title: '', content: '', image: '' });
     } catch (error) {
-      toast.error(editingId ? 'Error updating news' : 'Error posting news');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error(editingId ? 'Error updating news' : 'Error posting news');
+      }
     }
   };
 
@@ -1775,21 +1849,23 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
       toast.error('Email verification required');
       return;
     }
+    const path = `news/${id}`;
     try {
       await updateDoc(doc(db, 'news', id), { approved: true });
       toast.success('Article approved and published');
     } catch (error) {
-      toast.error('Error approving article');
+      handleFirestoreError(error, OperationType.UPDATE, path);
     }
   };
 
   const handleDelete = async () => {
     if (!deleteId || !isVerified) return;
+    const path = `news/${deleteId}`;
     try {
       await deleteDoc(doc(db, 'news', deleteId));
       toast.success('Article deleted');
     } catch (error) {
-      toast.error('Error deleting article');
+      handleFirestoreError(error, OperationType.DELETE, path);
     } finally {
       setDeleteId(null);
     }
@@ -1829,10 +1905,69 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
               <label className="text-xs font-bold text-gray-500 uppercase">Title</label>
               <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-xs font-bold text-gray-500 uppercase">Cover Image</label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                <div className="relative group aspect-[21/9] rounded-3xl overflow-hidden border-4 border-dashed border-gray-100 bg-gray-50 flex items-center justify-center transition-all hover:border-red-200">
+                  {localPreview || formData.image ? (
+                    <>
+                      <img src={localPreview || formData.image} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+                          <Loader2 className="w-10 h-10 text-white animate-spin mb-6" />
+                          <div className="w-full max-w-md bg-white/20 h-2.5 rounded-full overflow-hidden mb-3">
+                            <motion.div 
+                              className="bg-red-500 h-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs font-black text-white uppercase tracking-[0.2em]">{uploadStatus} {uploadProgress}%</p>
+                        </div>
+                      )}
+                      {uploadSuccess && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute inset-0 bg-green-500/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white"
+                        >
+                          <motion.div 
+                            initial={{ y: 20 }}
+                            animate={{ y: 0 }}
+                            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl"
+                          >
+                            <Check className="w-10 h-10 text-green-500 stroke-[3px]" />
+                          </motion.div>
+                          <p className="text-sm font-black uppercase tracking-[0.2em] italic">Cover Image Uploaded!</p>
+                        </motion.div>
+                      )}
+                      {!uploading && !uploadSuccess && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4">
+                          <label htmlFor="news-image-upload" className="w-12 h-12 bg-white rounded-2xl cursor-pointer hover:scale-110 transition-transform flex items-center justify-center shadow-xl">
+                            <Upload className="w-6 h-6 text-gray-900" />
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, image: '' }));
+                              setLocalPreview(null);
+                            }}
+                            className="w-12 h-12 bg-white rounded-2xl hover:scale-110 transition-transform flex items-center justify-center shadow-xl text-red-600"
+                          >
+                            <X className="w-6 h-6" />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <label htmlFor="news-image-upload" className="flex flex-col items-center justify-center cursor-pointer p-12 text-center group">
+                      <div className="w-16 h-16 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-4 transition-all group-hover:scale-110 group-hover:shadow-red-100/50">
+                        <ImageIcon className="w-8 h-8 text-gray-300 group-hover:text-red-400" />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 mb-1">Upload a cover story image</span>
+                      <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Landscape works best (16:9)</span>
+                    </label>
+                  )}
                   <Input 
                     type="file" 
                     accept="image/jpeg,image/png,image/webp" 
@@ -1841,36 +1976,20 @@ const NewsManager = ({ news, isVerified, isSuperAdmin, isEditor }: { news: any[]
                     id="news-image-upload"
                     disabled={uploading}
                   />
-                  <label 
-                    htmlFor="news-image-upload"
-                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer transition-all border border-slate-200 border-dashed hover:border-red-300 hover:text-red-600 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-bold">{uploading ? `Uploading ${uploadProgress}%` : formData.image ? 'Change Image' : 'Upload Image'}</span>
-                  </label>
-                  {formData.image && (
-                    <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <button 
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  )}
                 </div>
-                <Input 
-                  value={formData.image} 
-                  onChange={e => setFormData({...formData, image: e.target.value})} 
-                  placeholder="Or paste image URL" 
-                  className="text-[10px] h-7 bg-gray-50/50"
-                />
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or External Image URL</label>
+                  <Input 
+                    value={formData.image} 
+                    onChange={e => {
+                      setFormData({...formData, image: e.target.value});
+                      setLocalPreview(null);
+                    }} 
+                    placeholder="https://example.com/news-cover.jpg" 
+                    className="text-xs h-10 bg-gray-50/50 rounded-xl border-gray-100"
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -1927,8 +2046,8 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const { uploading, uploadProgress, uploadStatus, uploadSuccess, handleUpload } = useOptimizedUpload(isVerified);
   const [formData, setFormData] = useState({
     url: '',
     caption: ''
@@ -1944,48 +2063,30 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: 
       url: item.url,
       caption: item.caption || ''
     });
+    setLocalPreview(item.url || null);
     setIsAdding(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validation
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG and WEBP files are allowed');
-      return;
-    }
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLocalPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const url = await uploadFile(file, 'gallery', (progress) => {
-        setUploadProgress(Math.round(progress));
-      });
+    const url = await handleUpload(file, 'gallery');
+    if (url) {
       setFormData(prev => ({ ...prev, url: url }));
-      
-      // If we are editing an existing gallery item, update the document immediately
+      setLocalPreview(url);
       if (editingId) {
         await updateDoc(doc(db, 'gallery', editingId), { url: url });
       }
-      
-      toast.success('Image uploaded successfully ✅');
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      toast.error(`Error uploading image: ${error.message || 'Unknown error'}`);
-    } finally {
-      setUploading(false);
+      toast.success('Optimized gallery image uploaded! ⚡');
+    } else {
+      setLocalPreview(formData.url || null);
     }
   };
 
@@ -2001,30 +2102,43 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: 
     }
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'gallery', editingId), formData);
-        toast.success('Gallery item updated');
+        const path = `gallery/${editingId}`;
+        try {
+          await updateDoc(doc(db, 'gallery', editingId), formData);
+          toast.success('Gallery item updated');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'gallery'), {
-          ...formData,
-          date: serverTimestamp()
-        });
-        toast.success('Image added to gallery');
+        const path = 'gallery';
+        try {
+          await addDoc(collection(db, 'gallery'), {
+            ...formData,
+            date: serverTimestamp()
+          });
+          toast.success('Image added to gallery');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       setIsAdding(false);
       setEditingId(null);
       setFormData({ url: '', caption: '' });
     } catch (error) {
-      toast.error(editingId ? 'Error updating gallery' : 'Error adding to gallery');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error(editingId ? 'Error updating gallery' : 'Error adding to gallery');
+      }
     }
   };
 
   const handleDelete = async () => {
     if (!deleteId || !isVerified) return;
+    const path = `gallery/${deleteId}`;
     try {
       await deleteDoc(doc(db, 'gallery', deleteId));
       toast.success('Image deleted');
     } catch (error) {
-      toast.error('Error deleting image');
+      handleFirestoreError(error, OperationType.DELETE, path);
     } finally {
       setDeleteId(null);
     }
@@ -2060,10 +2174,69 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: 
       {isAdding && (
         <Card className="border-none shadow-lg bg-white p-6">
           <form onSubmit={handleAdd} className="space-y-6">
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-xs font-bold text-gray-500 uppercase">Gallery Photo</label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                <div className="relative group aspect-video rounded-3xl overflow-hidden border-4 border-dashed border-gray-100 bg-gray-50 flex items-center justify-center transition-all hover:border-red-200">
+                  {localPreview || formData.url ? (
+                    <>
+                      <img src={localPreview || formData.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+                          <Loader2 className="w-10 h-10 text-white animate-spin mb-6" />
+                          <div className="w-full max-w-sm bg-white/20 h-2.5 rounded-full overflow-hidden mb-3">
+                            <motion.div 
+                              className="bg-red-500 h-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs font-black text-white uppercase tracking-[0.2em]">{uploadStatus} {uploadProgress}%</p>
+                        </div>
+                      )}
+                      {uploadSuccess && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                          className="absolute inset-0 bg-green-500/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white"
+                        >
+                          <motion.div 
+                            initial={{ y: 20 }}
+                            animate={{ y: 0 }}
+                            className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-2xl"
+                          >
+                            <Check className="w-12 h-12 text-green-500 stroke-[4px]" />
+                          </motion.div>
+                          <p className="text-lg font-black uppercase tracking-[0.3em] italic drop-shadow-md">Uploaded!</p>
+                        </motion.div>
+                      )}
+                      {!uploading && !uploadSuccess && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4">
+                          <label htmlFor="gallery-image-upload" className="w-12 h-12 bg-white rounded-2xl cursor-pointer hover:scale-110 transition-transform flex items-center justify-center shadow-xl">
+                            <Upload className="w-6 h-6 text-gray-900" />
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, url: '' }));
+                              setLocalPreview(null);
+                            }}
+                            className="w-12 h-12 bg-white rounded-2xl hover:scale-110 transition-transform flex items-center justify-center shadow-xl text-red-600"
+                          >
+                            <X className="w-6 h-6" />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <label htmlFor="gallery-image-upload" className="flex flex-col items-center justify-center cursor-pointer p-12 text-center group">
+                      <div className="w-16 h-16 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-4 transition-all group-hover:scale-110 group-hover:shadow-red-100/50">
+                        <ImageIcon className="w-8 h-8 text-gray-300 group-hover:text-red-400" />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 mb-1">Click to browse your photos</span>
+                      <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">High quality JPG, PNG, WEBP</span>
+                    </label>
+                  )}
                   <Input 
                     type="file" 
                     accept="image/jpeg,image/png,image/webp" 
@@ -2072,36 +2245,20 @@ const GalleryManager = ({ items, isVerified, isSuperAdmin, isEditor }: { items: 
                     id="gallery-image-upload"
                     disabled={uploading}
                   />
-                  <label 
-                    htmlFor="gallery-image-upload"
-                    className={`flex items-center justify-center gap-2 w-full h-10 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer transition-all border border-slate-200 border-dashed hover:border-red-300 hover:text-red-600 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-bold">{uploading ? `Uploading ${uploadProgress}%` : formData.url ? 'Change Image' : 'Upload Image'}</span>
-                  </label>
-                  {formData.url && (
-                    <div className="relative group w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <img src={formData.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <button 
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, url: '' }))}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  )}
                 </div>
-                <Input 
-                  value={formData.url} 
-                  onChange={e => setFormData({...formData, url: e.target.value})} 
-                  placeholder="Or paste image URL" 
-                  className="text-[10px] h-7 bg-gray-50/50"
-                />
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or External Image URL</label>
+                  <Input 
+                    value={formData.url} 
+                    onChange={e => {
+                      setFormData({...formData, url: e.target.value});
+                      setLocalPreview(null);
+                    }} 
+                    placeholder="https://example.com/gallery-photo.jpg" 
+                    className="text-xs h-10 bg-gray-50/50 rounded-xl border-gray-100"
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -2141,10 +2298,11 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-gray-900">Recent Donations</h2>
       <Card className="border-none shadow-md bg-white overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
               <TableHead>Donor</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Message</TableHead>
@@ -2161,7 +2319,8 @@ const DonationManager = ({ donations }: { donations: any[] }) => {
             ))}
           </TableBody>
         </Table>
-      </Card>
+      </div>
+    </Card>
     </div>
   );
 };
@@ -2225,7 +2384,7 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: 
       return;
     }
     try {
-      await setDoc(doc(db, 'settings', 'teamStats'), {
+      const data = {
         wins: Number(formData.wins),
         draws: Number(formData.draws),
         losses: Number(formData.losses),
@@ -2234,10 +2393,28 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: 
         cleanSheets: Number(formData.cleanSheets),
         totalMatches: Number(formData.totalMatches),
         averageRating: Number(formData.averageRating)
-      });
-      toast.success('Stats updated');
+      };
+
+      if (Object.values(data).some(v => isNaN(v) || v < 0)) {
+        toast.error('Stats values must be non-negative');
+        return;
+      }
+      if (data.averageRating > 10) {
+        toast.error('Average rating cannot exceed 10');
+        return;
+      }
+
+      const path = 'settings/teamStats';
+      try {
+        await setDoc(doc(db, 'settings', 'teamStats'), data);
+        toast.success('Stats updated');
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, path);
+      }
     } catch (error) {
-      toast.error('Error updating stats');
+      if (!(error instanceof Error && error.message.includes('{'))) {
+        toast.error('Error updating stats');
+      }
     }
   };
 
@@ -2247,11 +2424,12 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: 
       toast.error('Email verification required');
       return;
     }
+    const path = 'settings/socialLinks';
     try {
       await setDoc(doc(db, 'settings', 'socialLinks'), socialData);
       toast.success('Social links updated');
     } catch (error) {
-      toast.error('Error updating social links');
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
   };
 
@@ -2266,35 +2444,35 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: 
           <form onSubmit={handleSaveStats} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Total Matches</label>
-              <Input type="number" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.totalMatches} onChange={e => setFormData({...formData, totalMatches: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Wins</label>
-              <Input type="number" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.wins} onChange={e => setFormData({...formData, wins: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Draws</label>
-              <Input type="number" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.draws} onChange={e => setFormData({...formData, draws: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Losses</label>
-              <Input type="number" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.losses} onChange={e => setFormData({...formData, losses: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals Scored</label>
-              <Input type="number" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.goalsScored} onChange={e => setFormData({...formData, goalsScored: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Goals Conceded</label>
-              <Input type="number" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.goalsConceded} onChange={e => setFormData({...formData, goalsConceded: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Clean Sheets</label>
-              <Input type="number" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" min="0" value={formData.cleanSheets} onChange={e => setFormData({...formData, cleanSheets: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Average Rating</label>
-              <Input type="number" step="0.1" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} disabled={!isSuperAdmin} />
+              <Input type="number" step="0.1" min="0" max="10" value={formData.averageRating} onChange={e => setFormData({...formData, averageRating: e.target.value})} disabled={!isSuperAdmin} />
             </div>
             <div className="md:col-span-2 lg:col-span-4 pt-4">
               <Button type="submit" className="w-full bg-gray-900 hover:bg-black text-white h-14 rounded-xl font-bold" disabled={!isSuperAdmin}>
@@ -2376,224 +2554,155 @@ const SettingsManager = ({ stats, social, isVerified, isSuperAdmin, isEditor }: 
   );
 };
 
-const SupabaseMediaManager = ({ items, onRefresh, isVerified, isSuperAdmin, isEditor }: { items: any[], onRefresh: () => void, isVerified: boolean, isSuperAdmin: boolean, isEditor: boolean }) => {
-  const [isAdding, setIsAdding] = useState(false);
+
+const DirectFirebaseStorage = ({ isVerified, isEditor }: { isVerified: boolean, isEditor: boolean }) => {
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [formData, setFormData] = useState({
-    url: '',
-    description: ''
-  });
+  const [progress, setProgress] = useState(0);
+  const [downloadURL, setDownloadURL] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !isVerified) return;
 
-    if (!isSupabaseConfigured || !supabase) {
-      toast.error('Supabase is not configured yet. Check your environment variables.');
+    if (!navigator.onLine) {
+      toast.error('Internet connection appears unstable or offline.');
       return;
     }
 
     setUploading(true);
-    setUploadProgress(10); // Initial progress
+    setProgress(0);
     try {
-      const url = await uploadToSupabase(file, 'media', 'gallery');
-      setFormData(prev => ({ ...prev, url }));
-      setUploadProgress(100);
-      toast.success('Image uploaded to Supabase Storage! 🚀');
+      // 1. Size check
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File is too large. Maximum size is 5MB.');
+      }
+
+      // 2. Type check (browser can be bypassed, check here too)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Please upload an image.');
+      }
+
+      const url = await uploadFile(file, 'uploads', (p) => setProgress(Math.round(p)));
+      setProgress(100);
+      setDownloadURL(url);
+      setHistory(prev => [url, ...prev].slice(0, 10));
+      toast.success('File uploaded to Firebase Storage! 🚀');
     } catch (error: any) {
-      console.error('Supabase upload error:', error);
-      toast.error(`Upload failed: ${error.message || 'Check if "media" bucket exists and is public'}`);
+      console.error('Storage upload error:', error);
+      toast.error(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
-    if (!formData.url) {
-      toast.error('Please upload an image first');
-      return;
-    }
-
-    try {
-      const { error } = await supabase!
-        .from('club_media')
-        .insert([{
-          url: formData.url,
-          description: formData.description
-        }]);
-
-      if (error) throw error;
-
-      toast.success('Media saved to Supabase database! ✅');
-      setFormData({ url: '', description: '' });
-      setIsAdding(false);
-      onRefresh();
-    } catch (error: any) {
-      console.error('Supabase save error:', error);
-      toast.error(`Failed to save: ${error.message || 'Check if "club_media" table exists'}`);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!isVerified) {
-      toast.error('Email verification required');
-      return;
-    }
-    try {
-      const { error } = await supabase!
-        .from('club_media')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success('Deleted from Supabase');
-      onRefresh();
-    } catch (error: any) {
-      toast.error('Delete failed');
-    }
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success('URL copied to clipboard! 📋');
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold text-gray-900">Supabase Media Cloud</h2>
-          <p className="text-xs text-gray-500 font-medium">Assets stored in Supabase PostgreSQL & Storage</p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Direct Storage Upload</h2>
+        <p className="text-gray-500 text-sm max-w-lg italic">
+          Based on your Firebase configuration. Quick upload for any assets (logos, sponsor banners, etc.)
+        </p>
+        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono bg-gray-100/50 w-fit px-2 py-1 rounded">
+          <Shield className="w-3 h-3" />
+          <span>Bucket: {(firebaseConfig as any).storageBucket || 'Default'}</span>
         </div>
-        {isEditor && (
-          <Button 
-            onClick={() => setIsAdding(!isAdding)} 
-            className={`${isAdding ? 'bg-gray-100 text-gray-900' : 'bg-emerald-600 text-white hover:bg-emerald-700'} rounded-2xl h-11 px-6 font-bold transition-all`}
-          >
-            {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            {isAdding ? 'Cancel' : 'New Upload'}
-          </Button>
-        )}
       </div>
 
-      {isAdding && (
-        <Card className="border-none shadow-xl bg-white p-8 animate-in zoom-in-95 duration-200 rounded-[2rem]">
-          <form onSubmit={handleSave} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Image File</label>
-                <div className="flex flex-col gap-4">
-                  <div className="flex gap-4">
-                    <Input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleFileUpload} 
-                      className="hidden" 
-                      id="supabase-image-upload"
-                      disabled={uploading}
-                    />
-                    <label 
-                      htmlFor="supabase-image-upload"
-                      className={`flex-1 flex items-center justify-center gap-3 h-32 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer transition-all border-2 border-emerald-200 border-dashed ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {uploading ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                          <span className="text-[10px] font-bold">Uploading to Cloud...</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2">
-                          <Upload className="w-6 h-6" />
-                          <span className="text-xs font-bold font-mono">DRAG & DROP OR BROWSE</span>
-                        </div>
-                      )}
-                    </label>
-                    {formData.url && (
-                      <div className="relative group w-32 h-32 rounded-2xl overflow-hidden shadow-lg border-2 border-white">
-                        <img src={formData.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Check className="w-8 h-8 text-white" />
-                        </div>
-                      </div>
-                    )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="border-none shadow-xl bg-white p-8 rounded-[2rem]">
+          <div className="space-y-6">
+            <div className="flex flex-col items-center justify-center border-4 border-dashed border-gray-100 rounded-[2.5rem] p-12 hover:bg-gray-50 transition-colors group">
+              <input 
+                type="file" 
+                id="direct-upload" 
+                className="hidden" 
+                onChange={onUpload}
+                disabled={uploading || !isEditor}
+                accept="image/*"
+              />
+              <label 
+                htmlFor="direct-upload" 
+                className={`flex flex-col items-center gap-4 cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+              >
+                <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform duration-500">
+                  {uploading ? <Loader2 className="w-10 h-10 animate-spin" /> : <Upload className="w-10 h-10" />}
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-black text-gray-900 mb-1">Click to Upload</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                    Max 5MB • JPG/PNG/WEBP<br/>
+                    Stored in: /uploads/
+                  </p>
+                </div>
+              </label>
+
+              {uploading && (
+                <div className="w-full mt-8 space-y-2">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-red-600 h-full transition-all duration-300" style={{ width: `${progress}%` }} />
                   </div>
-                  {uploading && (
-                    <div className="w-full bg-emerald-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-emerald-600 h-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{progress}% UPLOADED</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase animate-pulse">Syncing with cloud...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {downloadURL && (
+              <div className="space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <span id="status" className="text-sm font-bold text-green-800">Image uploaded successfully!</span>
                     </div>
-                  )}
-                  <Input 
-                    value={formData.url} 
-                    readOnly 
-                    placeholder="Public URL will appear here..." 
-                    className="text-[10px] h-9 bg-gray-50/50 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Story / Description</label>
-                <Textarea 
-                  value={formData.description} 
-                  onChange={e => setFormData({...formData, description: e.target.value})} 
-                  placeholder="Tell the story behind this image..." 
-                  className="min-h-[128px] rounded-2xl bg-gray-50/50 border-gray-100 focus:bg-white transition-all text-sm"
-                  required 
-                />
-              </div>
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={uploading || !formData.url} 
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-600/20"
-            >
-              Commit to Supabase Edge
-            </Button>
-          </form>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map(item => (
-          <Card key={item.id} className="group relative bg-white border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden">
-            <div className="aspect-[4/3] relative overflow-hidden">
-              <img src={item.url} alt={item.description} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
-                <p className="text-white text-sm font-medium line-clamp-2 mb-2">{item.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
-                    {format(new Date(item.created_at), 'MMM dd, yyyy')}
-                  </span>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isSuperAdmin && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDelete(item.id)} 
-                        className="h-8 w-8 rounded-full bg-white/10 hover:bg-red-500 hover:text-white transition-all text-gray-300"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
+                    <Badge variant="outline" className="bg-white text-green-700 border-green-200">Live URL</Badge>
+                  </div>
+                  <img id="imagePreview" src={downloadURL} alt="Preview" className="w-full h-48 object-cover rounded-xl shadow-sm mb-4" />
+                  <div className="flex gap-2">
+                    <Input value={downloadURL} readOnly className="bg-white border-green-200 text-xs font-mono" />
+                    <Button onClick={() => copyToClipboard(downloadURL)} className="bg-green-600 hover:bg-green-700 rounded-lg">
+                      Copy
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        ))}
-        {items.length === 0 && (
-          <div className="col-span-full py-16 flex flex-col items-center justify-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
-            <ImageIcon className="w-12 h-12 text-gray-300 mb-4" />
-            <h3 className="text-lg font-bold text-gray-900">No Supabase Cloud Assets</h3>
-            <p className="text-sm text-gray-500">Upload your first image to begin syncing with Postgres.</p>
+            )}
           </div>
-        )}
+        </Card>
+
+        <Card className="border-none shadow-xl bg-white p-8 rounded-[2rem]">
+          <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-6">Recent Uploads History</h3>
+          <div className="space-y-4">
+            {history.map((url, idx) => (
+              <div key={idx} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
+                <div className="w-12 h-12 rounded-xl overflow-hidden shadow-sm shrink-0">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-gray-400 font-mono truncate">{url}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(url)} className="text-gray-300 hover:text-red-600">
+                  <ImageIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            {history.length === 0 && (
+              <div className="py-20 text-center opacity-30">
+                <ImageIcon className="w-12 h-12 mx-auto mb-4" />
+                <p className="text-xs font-bold uppercase tracking-widest">No Recent Uploads</p>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -2616,11 +2725,12 @@ const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
   }, []);
 
   const updateRole = async (userId: string, role: string) => {
+    const path = `users/${userId}`;
     try {
       await updateDoc(doc(db, 'users', userId), { role });
       toast.success(`Role updated to ${role}`);
     } catch (error) {
-      toast.error('Failed to update role');
+      handleFirestoreError(error, OperationType.UPDATE, path);
     }
   };
 
@@ -2636,8 +2746,9 @@ const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
       return;
     }
 
+    const encodedId = `pre_${newEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const path = `users/${encodedId}`;
     try {
-      const encodedId = `pre_${newEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
       await setDoc(doc(db, 'users', encodedId), {
         email: newEmail.toLowerCase(),
         role: addingRole,
@@ -2648,16 +2759,17 @@ const RoleManager = ({ currentUserId }: { currentUserId: string }) => {
       setNewEmail('');
       setIsAdding(false);
     } catch (error) {
-      toast.error('Failed to pre-authorize user');
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
   };
 
   const deleteUserRecord = async (id: string) => {
+    const path = `users/${id}`;
     try {
       await deleteDoc(doc(db, 'users', id));
       toast.success('User access revoked');
     } catch (error) {
-      toast.error('Failed to revoke access');
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   };
 

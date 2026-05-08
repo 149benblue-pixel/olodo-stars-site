@@ -4,10 +4,36 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const storage = getStorage(app);
-export const auth = getAuth(app);
+const initFirebase = () => {
+  try {
+    if (!firebaseConfig || !firebaseConfig.apiKey) {
+      throw new Error('Firebase configuration (apiKey) is missing. Check firebase-applet-config.json');
+    }
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    const storage = getStorage(app);
+    const auth = getAuth(app);
+
+    if (!firebaseConfig.storageBucket) {
+      console.warn('Firebase Storage bucket is missing in config. Uploads may fail.');
+    }
+
+    return { app, db, storage, auth };
+  } catch (error) {
+    console.error('Critical Error during Firebase Initialization:', error);
+    // Return objects that will throw when used, or nulls with type casting to avoid initial import crashes
+    return {
+      app: null as any,
+      db: null as any,
+      storage: null as any,
+      auth: null as any
+    };
+  }
+};
+
+export { firebaseConfig };
+export const { app, db, storage, auth } = initFirebase();
 export const googleProvider = new GoogleAuthProvider();
 
 /**
@@ -25,6 +51,10 @@ export const uploadFile = async (
   try {
     if (!storage) {
       throw new Error('Firebase Storage is not initialized. Please check your configuration.');
+    }
+    
+    if (!navigator.onLine) {
+      throw new Error('You appear to be offline. Please check your internet connection.');
     }
     
     console.log(`Attempting to upload ${file.name} to ${path}`);
@@ -84,6 +114,7 @@ export const logout = () => signOut(auth);
 
 // Test connection to Firestore
 async function testConnection() {
+  if (!db) return;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
@@ -126,12 +157,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo: auth?.currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         displayName: provider.displayName,
         email: provider.email,

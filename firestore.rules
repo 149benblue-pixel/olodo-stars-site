@@ -1,188 +1,217 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: players
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required)
-    //   - number: number (required)
-    //   - position: string (required, enum)
-    //   - photo: string (optional, URL)
-    //   - matchesPlayed: number
-    //   - goals: number
-    //   - assists: number
-    //   - rating: number
-    //
-    // Collection: officials
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required)
-    //   - role: string (required)
-    //   - photo: string (optional, URL)
-    //   - contact: string
-    //
-    // Collection: matches
-    // Document ID: auto-generated
-    // Fields:
-    //   - opponent: string (required)
-    //   - date: timestamp (required)
-    //   - isUpcoming: bool (required)
-    //   - score: string
-    //   - competition: string
-    //   - venue: string
-    //   - time: string
-    //
-    // Collection: news
-    // Document ID: auto-generated
-    // Fields:
-    //   - title: string (required)
-    //   - content: string (required)
-    //   - date: timestamp (required)
-    //   - image: string (optional, URL)
-    //   - approved: bool (required)
-    //
-    // Collection: donations
-    // Document ID: auto-generated
-    // Fields:
-    //   - amount: number (required)
-    //   - donorName: string
-    //   - message: string
-    //   - date: timestamp (required)
-    //
-    // Collection: settings
-    // Document ID: teamStats
-    // Fields:
-    //   - totalMatches: number
-    //   - wins: number
-    //   - draws: number
-    //   - losses: number
-    //   - goalsScored: number
-    //   - goalsConceded: number
-    //   - averageRating: number
-    //
-    // ===============================================================
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
-    function isAuthenticated() {
+
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Safe getRole helper that handles non-existent documents
-    function getRoleSafe() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data.role : null;
+    function incoming() {
+      return request.resource.data;
     }
 
+    function existing() {
+      return resource.data;
+    }
+
+    // Auth tokens can contain the email and its verification status
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function currentUserEmail() {
+      return request.auth.token.email;
+    }
+
+    // Super Admin check: Hardcoded fallback + Database role
     function isSuperAdmin() {
-      return isAuthenticated() &&
-        (getRoleSafe() == 'super_admin' || 
-         (request.auth.token.email == "149benblue@gmail.com" && request.auth.token.email_verified == true));
+      return isSignedIn() && (
+        (isEmailVerified() && currentUserEmail() == "149benblue@gmail.com") ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
+      );
     }
 
+    // Editor check: Role in database or Super Admin
     function isEditor() {
-      return isAuthenticated() && (getRoleSafe() == 'editor' || isSuperAdmin());
-    }
-
-    function isAdmin() {
-      return isSuperAdmin();
-    }
-
-    function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'editor')
+      );
     }
 
     // ===============================================================
-    // Rules
+    // Validation Blueprints
     // ===============================================================
 
+    function isValidPlayer(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.number is number && data.number >= 0 && data.number <= 99 &&
+             data.position is string && data.position.size() > 0 &&
+             (data.get('photo', '') is string) &&
+             (data.get('commitmentCount', 0) is number);
+    }
+
+    function isValidOfficial(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.role is string && data.role.size() > 0 &&
+             (data.get('photo', '') is string);
+    }
+
+    function isValidMatch(data) {
+      return data.opponent is string && data.opponent.size() > 0 &&
+             data.isUpcoming is bool &&
+             (data.get('score', '') is string);
+    }
+
+    function isValidNews(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 &&
+             data.approved is bool &&
+             (data.get('image', '') is string) &&
+             (data.get('date', request.time) == request.time);
+    }
+
+    function isValidGallery(data) {
+      return data.url is string && data.url.size() > 0 &&
+             (data.get('caption', '') is string) &&
+             (data.get('date', request.time) == request.time);
+    }
+
+    function isValidUser(data) {
+      return data.email is string && data.email.size() > 0 &&
+             data.role in ['super_admin', 'editor', 'viewer'] &&
+             (data.get('displayName', null) == null || data.get('displayName', null) is string) &&
+             (data.get('preAuthorized', false) is bool) &&
+             (data.get('createdAt', request.time) == request.time);
+    }
+
+    function isValidDonation(data) {
+      return data.amount is number && data.amount > 0 &&
+             (data.get('donorName', '') is string) &&
+             (data.get('message', '') is string) &&
+             (data.get('date', request.time) == request.time);
+    }
+
+    // ===============================================================
+    // Match Blocks
+    // ===============================================================
+
+    // Users & Roles
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow create: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId && 
-                    request.resource.data.role == 'viewer');
-      allow update, delete: if isSuperAdmin();
+      // Path Hardening
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSuperAdmin();
+      
+      allow create: if isValidId(userId) && (isSuperAdmin() || (
+        isSignedIn() && request.auth.uid == userId && 
+        isValidUser(incoming()) && 
+        incoming().role == 'viewer' &&
+        incoming().email == currentUserEmail()
+      ));
+      
+      allow update: if isValidId(userId) && isSuperAdmin() && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'email', 'preAuthorized'])
+      );
+      
+      allow delete: if isValidId(userId) && isSuperAdmin();
     }
 
+    // Players
     match /players/{playerId} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if true;
       allow create, delete: if isSuperAdmin();
-      allow update: if (isEditor() && (
-        isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo'])
-      )) || (
-        // Public commitment vouching: Allow anyone to increment commitmentCount
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commitmentCount']) &&
-        request.resource.data.commitmentCount is number
+      allow update: if (
+        (isSuperAdmin() && isValidPlayer(incoming())) ||
+        (isEditor() && isValidPlayer(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photo', 'bio', 'position', 'number'])) ||
+        (isSignedIn() && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['commitmentCount']) &&
+         incoming().commitmentCount == existing().commitmentCount + 1)
       );
 
       match /opinions/{opinionId} {
         allow read: if true;
-        allow create: if request.resource.data.author is string && 
-                      request.resource.data.text is string;
+        allow create: if isSignedIn() && 
+                        incoming().author is string && incoming().author.size() > 0 &&
+                        incoming().text is string && incoming().text.size() > 0;
         allow update, delete: if isSuperAdmin();
       }
     }
 
+    // Officials
     match /officials/{officialId} {
       allow read: if true;
       allow create, delete: if isSuperAdmin();
-      allow update: if isEditor() && (
-        isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo'])
+      allow update: if (
+        (isSuperAdmin() && isValidOfficial(incoming())) ||
+        (isEditor() && isValidOfficial(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photo', 'role', 'contact']))
       );
     }
 
+    // Matches
     match /matches/{matchId} {
       allow read: if true;
       allow create, delete: if isSuperAdmin();
-      allow update: if isEditor() && (
-        isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoUrl', 'score'])
+      allow update: if (
+        (isSuperAdmin() && isValidMatch(incoming())) ||
+        (isEditor() && isValidMatch(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['score', 'videoUrl', 'venue', 'time', 'isUpcoming']))
       );
     }
 
+    // News
     match /news/{newsId} {
       allow read: if true;
-      allow create: if isEditor() || (
-        request.resource.data.title is string && 
-        request.resource.data.content is string && 
-        request.resource.data.approved == false
+      allow create: if (
+        (isEditor() && isValidNews(incoming())) ||
+        (isSignedIn() && isValidNews(incoming()) && incoming().approved == false)
       );
-      allow update: if isEditor() && (
-        isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'image', 'content'])
+      allow update: if (
+        (isSuperAdmin() && isValidNews(incoming())) ||
+        (isEditor() && isValidNews(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'image', 'approved']))
       );
       allow delete: if isSuperAdmin();
     }
 
-    match /donations/{donationId} {
-      allow read: if isSuperAdmin();
-      allow create: if request.resource.data.amount is number && request.resource.data.amount > 0;
-      allow update, delete: if isSuperAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
+    // Gallery
     match /gallery/{imageId} {
       allow read: if true;
       allow create, delete: if isSuperAdmin();
-      allow update: if isEditor() && (
-        isSuperAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['url', 'caption'])
+      allow update: if (
+        (isSuperAdmin() && isValidGallery(incoming())) ||
+        (isEditor() && isValidGallery(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['url', 'caption']))
       );
+    }
+
+    // Donations
+    match /donations/{donationId} {
+      allow list, get: if isSuperAdmin();
+      allow create: if isValidDonation(incoming());
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Settings
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Test Connection
+    match /test/connection {
+      allow read: if true;
     }
   }
 }

@@ -38,7 +38,7 @@ service cloud.firestore {
     // Super Admin check: Hardcoded fallback + Database role
     function isSuperAdmin() {
       return isSignedIn() && (
-        (isEmailVerified() && currentUserEmail() == "149benblue@gmail.com") ||
+        (currentUserEmail() == "149benblue@gmail.com") ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
       );
@@ -95,7 +95,7 @@ service cloud.firestore {
       return data.email is string && data.email.size() > 0 &&
              data.role in ['super_admin', 'editor', 'viewer'] &&
              (data.get('displayName', null) == null || data.get('displayName', null) is string) &&
-             (data.get('preAuthorized', false) is bool) &&
+             (data.get('isPreAuthorized', false) is bool) &&
              (data.get('createdAt', request.time) == request.time);
     }
 
@@ -112,22 +112,27 @@ service cloud.firestore {
 
     // Users & Roles
     match /users/{userId} {
-      // Path Hardening
-      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isSuperAdmin());
+      // Allow users to get their own profile or their pre-auth record
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId || 
+        isSuperAdmin() ||
+        (resource != null && resource.data.email == currentUserEmail())
+      );
+      
       allow list: if isSuperAdmin();
       
-      allow create: if isValidId(userId) && (isSuperAdmin() || (
+      allow create: if (isSuperAdmin() && isValidUser(incoming())) || (
         isSignedIn() && request.auth.uid == userId && 
         isValidUser(incoming()) && 
         incoming().role == 'viewer' &&
         incoming().email == currentUserEmail()
-      ));
-      
-      allow update: if isValidId(userId) && isSuperAdmin() && isValidUser(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'email', 'preAuthorized'])
       );
       
-      allow delete: if isValidId(userId) && isSuperAdmin();
+      allow update: if isSuperAdmin() && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'email', 'isPreAuthorized'])
+      );
+      
+      allow delete: if isSuperAdmin() || (isSignedIn() && resource != null && resource.data.email == currentUserEmail() && userId.startsWith('pre_'));
     }
 
     // Players

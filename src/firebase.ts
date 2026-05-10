@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const initFirebase = () => {
@@ -12,11 +12,22 @@ const initFirebase = () => {
     
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-    const storage = getStorage(app);
+    
+    // Explicitly pass bucket URL if present to ensure correct initialization. 
+    // If not, it will be pulled from firebaseConfig automatically by getStorage(app)
+    const storageBucket = firebaseConfig.storageBucket 
+      ? (firebaseConfig.storageBucket.startsWith('gs://') 
+          ? firebaseConfig.storageBucket 
+          : `gs://${firebaseConfig.storageBucket}`)
+      : undefined;
+      
+    const storage = storageBucket ? getStorage(app, storageBucket) : getStorage(app);
     const auth = getAuth(app);
 
     if (!firebaseConfig.storageBucket) {
-      console.warn('Firebase Storage bucket is missing in config. Uploads may fail.');
+      console.warn('Firebase Storage bucket is missing in config. Uploads will fail.');
+    } else {
+      console.log('Firebase Storage initialized. Bucket string:', firebaseConfig.storageBucket);
     }
 
     return { app, db, storage, auth };
@@ -57,46 +68,27 @@ export const uploadFile = async (
       throw new Error('You appear to be offline. Please check your internet connection.');
     }
     
-    console.log(`Attempting to upload ${file.name} to ${path}`);
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = snapshot.totalBytes > 0 
-            ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100 
-            : 0;
-          if (onProgress) onProgress(progress);
-        },
-        (error) => {
-          console.error('Error in uploadFile:', error);
-          if (error.code === 'storage/unauthorized') {
-            reject(new Error('Permission denied. Please ensure you are logged in and have permissions.'));
-          } else if (error.code === 'storage/quota-exceeded') {
-            reject(new Error('Storage quota exceeded. Please try again later.'));
-          } else if (error.code === 'storage/canceled') {
-            reject(new Error('Upload canceled.'));
-          } else {
-            reject(new Error(error.message || 'An unknown error occurred during upload.'));
-          }
-        },
-        async () => {
-          try {
-            const url = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log('Upload successful, URL:', url);
-            resolve(url);
-          } catch (urlError: any) {
-            console.error('Error getting download URL:', urlError);
-            reject(new Error(`Upload succeeded but could not get URL: ${urlError.message}`));
-          }
-        }
-      );
-    });
+    console.log(`Attempting to upload ${file.name} to ${path} (${file.size} bytes)`);
+    const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const storageRef = ref(storage, `${path}/${fileName}`);
+    
+    if (onProgress) onProgress(10);
+    
+    const result = await uploadBytes(storageRef, file);
+    
+    if (onProgress) onProgress(100);
+    
+    console.log('Upload successful for:', result.metadata.fullPath);
+    const url = await getDownloadURL(result.ref);
+    return url;
   } catch (error: any) {
-    console.error('Initial error in uploadFile:', error);
-    throw error;
+    console.error('Error in uploadFile:', error);
+    if (error.code === 'storage/unauthorized') {
+      throw new Error('Permission denied. Please ensure you have a verified email and are logged in.');
+    } else if (error.code === 'storage/retry-limit-exceeded') {
+      throw new Error('Connection timed out. This may be due to a misconfigured storage bucket or network issues.');
+    }
+    throw new Error(error.message || 'An unknown error occurred during upload.');
   }
 };
 

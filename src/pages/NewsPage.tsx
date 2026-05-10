@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Newspaper, Calendar, ArrowRight, Search, Plus, X } from 'lucide-react';
+import { Newspaper, Calendar, ArrowRight, Search, Plus, X, Upload, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { NewsModal } from '../components/NewsModal';
+import { uploadFile } from '../firebase';
 
 interface NewsItem {
   id: string;
@@ -26,6 +27,7 @@ const NewsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -61,6 +63,28 @@ const NewsPage = () => {
       setFormData({ title: '', content: '', image: '' });
     } catch (error) {
       toast.error('Error submitting news. Please try again.');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Max 5MB allowed.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadFile(file, 'news_submissions');
+      setFormData(prev => ({ ...prev, image: url }));
+      toast.success('Image uploaded successfully!');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Error uploading image');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -177,12 +201,52 @@ const NewsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 uppercase">Image URL (Optional)</label>
-                <Input 
-                  value={formData.image} 
-                  onChange={e => setFormData({...formData, image: e.target.value})} 
-                  placeholder="https://images.unsplash.com/..."
-                />
+                <label className="text-sm font-bold text-gray-700 uppercase leading-none">Image</label>
+                <div className="flex gap-4 items-start">
+                  <div className="flex-grow">
+                    <Input 
+                      value={formData.image} 
+                      onChange={e => setFormData({...formData, image: e.target.value})} 
+                      placeholder="Paste image URL or upload below..."
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="news-image-upload"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      accept="image/*"
+                      disabled={uploading}
+                    />
+                    <label htmlFor="news-image-upload">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="rounded-xl h-10 px-4 cursor-pointer"
+                        disabled={uploading}
+                        asChild
+                      >
+                        <span>
+                          {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                          {uploading ? 'Uploading...' : 'Upload'}
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                </div>
+                {formData.image && (
+                  <div className="mt-2 relative w-32 h-20 rounded-xl overflow-hidden border border-gray-100">
+                    <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                    <button 
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                      className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase">Content</label>
